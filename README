@@ -1,0 +1,45 @@
+
+In this project, you will find the API of the NIO interface 
+we want you to conform to. This is interface is intended
+to guide you in the world of event-oriented programming.
+It is **not** optional, you must use this API and implement
+it on top of the Java NIO library.
+
+The starting point is the class Engine. It allows 
+to listen to incoming connections on ports as well as
+to connect to remote ports. 
+
+You will implement the abstract method mainloop() as the main loop
+on your selector. You should capture your main thread in this never-ending
+loop.
+
+Notice the event-oriented style, with callbacks (AcceptCallback and
+ConnectCallback). When a connection is established, it is wrapped by an object,
+instance of the class Channel. Through an Channel, you can send and receive messages.
+
+Notice that you have the ability to have statistics on your messaging middleware, 
+see Engine::startEcho() method, as long as you update the staticistic-related fields 
+in the Engine class.
+
+===============================================================================
+Also, you may use Java profiling, such as starting your JRE with the following
+options:
+
+		java -agentlib:hprof=file=hprof.txt,cpu=samples MyClass
+
+or 
+
+		java -agentlib:hprof=file=hprof.txt,cpu=times MyClass
+
+For more information, see the HPROF_README.
+
+Attention: the hprof.txt file will only be generated if your program exits normally.
+
+===============================================================================
+http://www.eclemma.org/
+
+  Java Code Coverage for Eclipse 
+  
+===============================================================================
+
+ 
