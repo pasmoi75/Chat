@@ -4,14 +4,14 @@ import java.util.Date;
 
 public class Message {
 
-	int nb_ack = 0 ;
+	byte[] message ;
+	int nb_ack = 1 ;
 	long date;
 	
 
-	public Message() {
-
-		Date date = new Date();
-		this.date = date.getTime();
+	public Message(Long date, byte[] mess) {
+		this.message=mess;
+		this.date=date;
 		
 
 	}

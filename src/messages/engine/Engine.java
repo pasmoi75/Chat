@@ -144,6 +144,8 @@ public abstract class Engine {
   public abstract void connect(InetAddress hostAddress, int port,
       ConnectCallback callback) throws UnknownHostException, SecurityException, IOException;
   
-  public abstract void addToMap(Message mess, Long ack); 
+  public abstract void addToMap(Message mess, Long ack);
+  
+  public abstract void addToQueue(Message mess, Long ack);
 
 }

@@ -11,10 +11,12 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -22,16 +24,30 @@ public class NioEngine extends Engine {
 
 	private List<Channel> channel_list;
 	private Selector selector;
-	private TreeMap<Message, Long> ordered_map;
+	private HashMap<Message, Long> ordered_map;
+	private NioDeliver deliver;
+	boolean nouveau_venu = false;
+	private PriorityQueue<Message> priority;
 
 	public NioEngine() throws IOException {
 		selector = Selector.open();
 		channel_list = new LinkedList<Channel>();
+		ordered_map = new HashMap<Message, Long>();
+		Comparator<Message> compare = new Comparateur_Message();
+		priority = new PriorityQueue<>(50, compare);
 	}
 
 	@Override
 	public void mainloop() {
 		while (true) {
+
+			for (Message mess : ordered_map.keySet()) {
+				if (mess.nb_ack == getChannel_list().size()) {
+					System.out.println("BON SIGNE");
+					deliver.deliver(getChannel_list().get(0), mess.message);
+				}
+			}
+
 			try {
 				int keys_number = selector.select(500);
 				if (keys_number > 0) {
@@ -184,15 +200,25 @@ public class NioEngine extends Engine {
 
 	}
 
+	public synchronized void toMap(TreeMap<Message, Long> treemap) {
+		int i = 0;
+		HashMap<Message, Long> map = new HashMap<>();
+		for (Message mess : treemap.keySet()) {
+			map.put(mess, treemap.get(mess));
+		}
+
+		map = ordered_map;
+	}
+
 	public synchronized List<Channel> getChannelList() {
 		return channel_list;
 	}
 
-	class Comparateur_Date implements Comparator {
+	class Comparateur implements Comparator {
 
 		Map<Message, Long> tuple;
 
-		public Comparateur_Date(TreeMap<Message, Long> map) {
+		public Comparateur(HashMap<Message, Long> map) {
 			this.tuple = map;
 		}
 
@@ -208,31 +234,42 @@ public class NioEngine extends Engine {
 		}
 	}
 
+	class Comparateur_Message implements Comparator<Message> {
+
+		@Override
+		public int compare(Message o1, Message o2) {
+			if (o1.date < o2.date) {
+				return -1;
+			} else {
+				return 1;
+			}
+		}
+	}
+
 	public synchronized void addToMap(Message mess, Long ack) {
 
 		if (ack == null) {
-			
-			if(ordered_map.containsValue(mess.date)) {
-				
+
+			if (ordered_map.containsValue(mess.date)) {
+
 				TreeMap<Message, Long> new_map = new TreeMap<>();
 				for (Message message : ordered_map.keySet()) {
 
 					if (message.date == mess.date) {
 						mess.nb_ack = message.nb_ack;
 						new_map.put(mess, mess.date);
-					}
-					else
-					new_map.put(message, message.date);
+					} else
+						new_map.put(message, message.date);
 
 				}
 
-				ordered_map = new_map;
-				
+				toMap(new_map);
+
 			}
-			
-			else 
-			ordered_map.put(mess, mess.date);
-			
+
+			else
+				ordered_map.put(mess, mess.date);
+
 		} else {
 
 			if (ordered_map.containsValue(ack)) {
@@ -248,22 +285,81 @@ public class NioEngine extends Engine {
 
 				}
 
-				ordered_map = new_map;
+				toMap(new_map);
 
 			}
-			
+
 			else {
-				Message nouveau = new Message();
-				nouveau.date = ack;
+				Message nouveau = new Message(ack, null);
 				nouveau.nb_ack = 1;
-				ordered_map.put(nouveau,ack);
+				ordered_map.put(nouveau, ack);
 			}
 		}
 
-		Comparateur_Date comp = new Comparateur_Date(ordered_map);
+		Comparateur comp = new Comparateur(ordered_map);
 		TreeMap<Message, Long> map_triee = new TreeMap<Message, Long>(comp);
 		map_triee.putAll(ordered_map);
-		ordered_map = map_triee;
+		toMap(map_triee);
+	}
+
+	public synchronized void addToQueue(Message mess, Long ack) {
+
+		if (ack == null) {
+
+			if (contains(priority, mess.date)!=null) {
+
+				Message messi = contains(priority, mess.date);
+				priority.remove(messi);
+				messi.nb_ack+=1;
+				priority.add(messi);
+			}
+
+			else
+				priority.add(mess);
+
+		} else {
+
+			if (contains(priority, mess.date)!=null) {
+
+				Message messi = contains(priority, mess.date);
+				priority.remove(messi);
+				messi.nb_ack+=1;
+				priority.add(messi);
+			}
+
+			else {
+				Message nouveau = new Message(ack, null);
+				priority.add(nouveau);
+			}
+		}
+
+	}
+
+	public Message contains(PriorityQueue<Message> messages, Long date) {
+
+		for (Message mess : messages) {
+			if (mess.date == date)
+				return mess;
+		}
+
+		return null;
+
+	}
+
+	public synchronized List<Channel> getChannel_list() {
+		return channel_list;
+	}
+
+	public synchronized void setChannel_list(List<Channel> channel_list) {
+		this.channel_list = channel_list;
+	}
+
+	public synchronized HashMap<Message, Long> getOrdered_map() {
+		return ordered_map;
+	}
+
+	public synchronized void setOrdered_map(HashMap<Message, Long> ordered_map) {
+		this.ordered_map = ordered_map;
 	}
 
 }

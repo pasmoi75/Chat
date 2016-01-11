@@ -53,10 +53,16 @@ public class NioConnect implements ConnectCallback {
 	@Override
 	public void connected(Channel channel) {
 		System.out.println("Connection successful.");
+		String ip = ((NioChannel)channel).getChannel().socket().getLocalAddress().toString();
+		String duble = ip.substring(1) + ":" + ((NioChannel)channel).getLocal_port() ;
+		System.out.println("ICI : " + duble);
+		byte[] bytee = duble.getBytes();
 		selectionkey.interestOps(SelectionKey.OP_READ);
 		selectionkey.attach(channel);
 		((NioChannel)channel).setSelectionkey(selectionkey);
 		((NioEngine)engine).getChannelList().add(channel);
+
+		channel.send(bytee, 0, bytee.length, 2);
 		engine.connectCount++;
 	}
 

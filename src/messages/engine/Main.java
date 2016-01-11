@@ -6,6 +6,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
+import java.util.Date;
 import java.util.Random;
 import java.util.Scanner;
 
@@ -29,8 +30,10 @@ public class Main {
 			if (args.length > 1) {
 				try {
 					port = Integer.parseInt(args[1]);
+					System.out.println("VALEUR DU PORT: " + port);
 				} catch (NumberFormatException e) {
-					System.out.println("Warning : Args[0] must be an Integer (0-65535)");
+					System.out
+							.println("Warning : Args[1] must be an Integer (0-65535)");
 				}
 			}
 			serveur1 = new NioServer(engine, port);
@@ -38,10 +41,13 @@ public class Main {
 			if (args.length > 2) {
 				for (int i = 2; i < args.length; i++) {
 					try {
+						((NioEngine) engine).nouveau_venu = true;
 						int porte = Integer.parseInt(args[i]);
-						NioChannel channel = new NioChannel(engine, InetAddress.getByName("localhost"), porte);
+						NioChannel channel = new NioChannel(engine,
+								InetAddress.getByName("localhost"), porte, port);
 					} catch (NumberFormatException e) {
-						System.out.println("Warning : Args[i] must be an Integer (0-65535)");
+						System.out
+								.println("Warning : Args[i] must be an Integer (0-65535)");
 						continue;
 					}
 				}
@@ -50,30 +56,39 @@ public class Main {
 				public void run() {
 					engine.mainloop();
 				}
-			},name);
+			}, name);
 			thread_engine.start();
 
-			/* Send random bytes to each peer 
-			 * In this demo, we wait there are 2 peers before sending
-			 * */
+			/*
+			 * Send random bytes to each peer In this demo, we wait there are 2
+			 * peers before sending
+			 */
 
 			boolean continuer = true;
 
 			while (continuer) {
-				if (((NioEngine) engine).getChannelList().size() > 1) {
+				if (((NioEngine) engine).getChannelList().size() > 0) {
 					for (int k = 0; k < 3; k++) {
-						Random random = new Random(System.currentTimeMillis());
-						int length = random.nextInt(Byte.MAX_VALUE);
-						System.out.println("Length :"+length);
+//						Random random = new Random(System.currentTimeMillis());
+//						int length = random.nextInt(Byte.MAX_VALUE);
+						int length = 4 ;
+						System.out.println("Length :" + length);
+						Date date = new Date();
+						Long daute = date.getTime();
+
 						byte bytes[] = new byte[length];
+
+
 						for (int i = 0; i < length; i++) {
 							bytes[i] = (byte) i;
 						}
-						for (Channel channel : ((NioEngine) engine).getChannelList()) {
-							channel.send(bytes, 0, bytes.length);
-						}						
+						for (Channel channel : ((NioEngine) engine)
+								.getChannelList()) {
+							// A VOIR
+							((NioChannel)channel).sendmessage(bytes, 0, bytes.length,daute);
+						}
 					}
-					continuer = false ;				
+					continuer = false;
 				}
 			}
 
@@ -90,5 +105,4 @@ public class Main {
 		}
 
 	}
-
 }
