@@ -18,7 +18,7 @@ public class NioDeliver implements DeliverCallback {
 	@Override
 	public void deliver(Channel channel, byte[] bytes) {
 	
-			System.out.println("Received :");
+			System.out.println("Received from: " + ((NioChannel)channel).getChannel().socket().getRemoteSocketAddress());
 			for(int i = 0 ; i < bytes.length; i++){
 				System.out.print(bytes[i]+" ");				
 			}
