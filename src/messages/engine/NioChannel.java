@@ -224,13 +224,13 @@ public class NioChannel extends Channel {
 
 			try {
 
-				checkbuffer(rcv_buffer);
+				
 				send_buffer.putInt(length);
 
-				checkbuffer(rcv_buffer);
+				
 				send_buffer.putInt(type);
 
-				checkbuffer(rcv_buffer);
+				
 				if (bytes != null)
 					send_buffer.put(bytes, offset, length);
 			} catch (BufferOverflowException e) {
@@ -265,23 +265,23 @@ public class NioChannel extends Channel {
 					if (!putin)
 						send_buffer.putInt(length);
 					putin = true;
-					checkbuffer(rcv_buffer);
+					
 
 					if (!me)
 						send_buffer.putInt(0);
 					me = true;
-					checkbuffer(rcv_buffer);
+					
 
 					if (!putdate)
 						send_buffer.putLong(date);
 					putdate = true;
-					checkbuffer(rcv_buffer);
+					
 
 					if (bytes != null)
 						if (!pubyte)
 							send_buffer.put(bytes, offset, length);
 					pubyte = true;
-					checkbuffer(rcv_buffer);
+					
 				} catch (BufferOverflowException e) {
 					System.out.println("Send Buffer is Full");
 					send_buffer.compact();
