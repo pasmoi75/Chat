@@ -25,7 +25,7 @@ public class NioEngine extends Engine {
 	private List<Channel> channel_list;
 	private Selector selector;
 	private HashMap<Message, Long> ordered_map;
-	private NioDeliver deliver;
+	private NioDeliver deliver = new NioDeliver(null);
 	boolean nouveau_venu = false;
 	private PriorityQueue<Message> priority;
 
@@ -41,10 +41,10 @@ public class NioEngine extends Engine {
 	public void mainloop() {
 		while (true) {
 
-			for (Message mess : ordered_map.keySet()) {
+			for (Message mess : priority) {
 				if (mess.nb_ack == getChannel_list().size()) {
 					System.out.println("BON SIGNE");
-					deliver.deliver(getChannel_list().get(0), mess.message);
+					((NioChannel)getChannel_list().get(0)).getDeliverCallback().deliver(getChannel_list().get(0), mess.message);
 				}
 			}
 

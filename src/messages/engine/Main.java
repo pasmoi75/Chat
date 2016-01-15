@@ -67,7 +67,7 @@ public class Main {
 			boolean continuer = true;
 
 			while (continuer) {
-				if (((NioEngine) engine).getChannelList().size() > 0) {
+				if (((NioEngine) engine).getChannelList().size() > 1) {
 					for (int k = 0; k < 3; k++) {
 //						Random random = new Random(System.currentTimeMillis());
 //						int length = random.nextInt(Byte.MAX_VALUE);

@@ -5,6 +5,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
@@ -23,11 +24,9 @@ public class NioChannel extends Channel {
 	private ByteBuffer send_buffer;
 	private DeliverCallback delivercallback;
 	private ConnectCallback connectcallback;
-	private boolean nouveau_venu ;
+	private boolean nouveau_venu;
 	private Integer local_port;
-	
-	
-	
+
 	public class BufferState {
 		public int messagelength;
 		public int remaining;
@@ -48,20 +47,21 @@ public class NioChannel extends Channel {
 		this.connectcallback = new NioConnect(engine, this);
 		this.rcv_buffer = ByteBuffer.allocate(1 << 8);
 		this.send_buffer = ByteBuffer.allocate(1 << 19);
-		this.nouveau_venu=((NioEngine)engine).nouveau_venu;
+		this.nouveau_venu = ((NioEngine) engine).nouveau_venu;
 	}
 
 	/* Constructor for Outgoing connections */
-	public NioChannel(Engine engine, InetAddress hostAddress, int port, int local_port)
-			throws UnknownHostException, SecurityException, IOException {
+	public NioChannel(Engine engine, InetAddress hostAddress, int port,
+			int local_port) throws UnknownHostException, SecurityException,
+			IOException {
 		this.engine = engine;
 		this.delivercallback = new NioDeliver(this);
 		this.connectcallback = new NioConnect(engine, this);
 		this.rcv_buffer = ByteBuffer.allocate(1 << 19);
 		this.send_buffer = ByteBuffer.allocate(1 << 19);
 		this.engine.connect(hostAddress, port, connectcallback);
-		this.nouveau_venu=((NioEngine)engine).nouveau_venu;
-		this.local_port=local_port;
+		this.nouveau_venu = ((NioEngine) engine).nouveau_venu;
+		this.local_port = local_port;
 
 	}
 
@@ -128,8 +128,6 @@ public class NioChannel extends Channel {
 		System.out.println("Longueur :" + length);
 		System.out.println("Identifiant :" + id);
 
-		System.out.println(channel);
-
 		switch (id) {
 		case 0:
 			// reception simple de message
@@ -147,11 +145,11 @@ public class NioChannel extends Channel {
 				engine.addToQueue(mess, null);
 				String mot = String.valueOf(date);
 				// on envoit le ack aux autres
-				if(!nouveau_venu) 
-				for (Channel channel : ((NioEngine) engine).getChannelList()) {
-					channel.send(mot.getBytes(), 0, length, 1);
-				}
-				
+				if (!nouveau_venu)
+					for (Channel channel : ((NioEngine) engine)
+							.getChannelList()) {
+						channel.send(mot.getBytes(), 0, length, 1);
+					}
 
 			}
 			if (buffer.hasRemaining()) {
@@ -169,7 +167,7 @@ public class NioChannel extends Channel {
 			// reception d'une demande pour rejoindre le groupe
 
 			for (Channel channel : ((NioEngine) engine).getChannelList()) {
-				if (!channel.equals(this)&&!nouveau_venu) {
+				if (!channel.equals(this) && !nouveau_venu) {
 					byte[] deliver_array1 = new byte[length];
 					buffer.get(deliver_array1, 0, length);
 
@@ -195,7 +193,8 @@ public class NioChannel extends Channel {
 				System.out.println(port);
 				try {
 					NioChannel new_channel = new NioChannel(this.engine,
-							InetAddress.getByName("localhost"), Integer.valueOf(port), this.local_port);
+							InetAddress.getByName("localhost"),
+							Integer.valueOf(port), this.local_port);
 				} catch (NumberFormatException | SecurityException
 						| IOException e) {
 					// TODO Auto-generated catch block
@@ -219,13 +218,76 @@ public class NioChannel extends Channel {
 	@Override
 	public void send(byte[] bytes, int offset, int length, int type) {
 		// System.out.println("Buffer position : "+send_buffer.position()+" \nBuffer capacity :"+send_buffer.capacity()+" \nBuffer Limit :"+send_buffer.limit());
-//		if(((NioEngine)engine).getChannel_list().size()%3==0)
-//			send_buffer.clear();
+		// if(((NioEngine)engine).getChannel_list().size()%3==0)
+		// send_buffer.clear();
 		if (send_buffer.capacity() - send_buffer.position() > length + 4) {
-			send_buffer.putInt(length);
-			send_buffer.putInt(type);
-			if (bytes != null)
-				send_buffer.put(bytes, offset, length);
+
+			try {
+
+				
+				send_buffer.putInt(length);
+
+				
+				send_buffer.putInt(type);
+
+				
+				if (bytes != null)
+					send_buffer.put(bytes, offset, length);
+			} catch (BufferOverflowException e) {
+
+				System.out.println("Send Buffer is Full");
+
+			}
+
+			selectionkey.interestOps(SelectionKey.OP_READ
+					| SelectionKey.OP_WRITE);
+
+		} else {
+			System.out.println("Send Buffer is Full");
+		}
+
+	}
+
+	public void sendmessage(byte[] bytes, int offset, int length, long date) {
+		// System.out.println("Buffer position : "+send_buffer.position()+" \nBuffer capacity :"+send_buffer.capacity()+" \nBuffer Limit :"+send_buffer.limit());
+		// if(((NioEngine)engine).getChannel_list().size()%3==0)
+		// send_buffer.clear();
+		boolean overflow = false;
+
+		if (send_buffer.capacity() - send_buffer.position() > length + 8) {
+			boolean putin = false;
+			boolean me = false;
+			boolean putdate = false;
+			boolean pubyte = false;
+
+			while (!(putin && me && putdate && pubyte)) {
+				try {
+					if (!putin)
+						send_buffer.putInt(length);
+					putin = true;
+					
+
+					if (!me)
+						send_buffer.putInt(0);
+					me = true;
+					
+
+					if (!putdate)
+						send_buffer.putLong(date);
+					putdate = true;
+					
+
+					if (bytes != null)
+						if (!pubyte)
+							send_buffer.put(bytes, offset, length);
+					pubyte = true;
+					
+				} catch (BufferOverflowException e) {
+					System.out.println("Send Buffer is Full");
+					send_buffer.compact();
+				}
+
+			}
 
 			selectionkey.interestOps(SelectionKey.OP_READ
 					| SelectionKey.OP_WRITE);
@@ -234,24 +296,12 @@ public class NioChannel extends Channel {
 		}
 
 	}
-	
-	public void sendmessage(byte[] bytes, int offset, int length, long date) {
-		// System.out.println("Buffer position : "+send_buffer.position()+" \nBuffer capacity :"+send_buffer.capacity()+" \nBuffer Limit :"+send_buffer.limit());
-//		if(((NioEngine)engine).getChannel_list().size()%3==0)
-//			send_buffer.clear();
-		if (send_buffer.capacity() - send_buffer.position() > length + 8) {
-			send_buffer.putInt(length);
-			send_buffer.putInt(0);
-			send_buffer.putLong(date);
-			if (bytes != null)
-				send_buffer.put(bytes, offset, length);
 
-			selectionkey.interestOps(SelectionKey.OP_READ
-					| SelectionKey.OP_WRITE);
-		} else {
-			System.out.println("Send Buffer is Full");
-		}
-
+	public void checkbuffer(ByteBuffer buffer) {
+		int taille = buffer.capacity();
+		int remain = buffer.remaining();
+		if ((((taille - remain) / taille)) > 0.75)
+			buffer.compact();
 	}
 
 	@Override
@@ -310,6 +360,14 @@ public class NioChannel extends Channel {
 		buffer.putLong(x);
 		buffer.get(sortie, 0, 4);
 		return sortie;
+	}
+
+	public DeliverCallback getDelivercallback() {
+		return delivercallback;
+	}
+
+	public void setDelivercallback(DeliverCallback delivercallback) {
+		this.delivercallback = delivercallback;
 	}
 
 	public static long bytesToLong(byte[] bytes) {
