@@ -16,7 +16,7 @@ public class NioAccept implements AcceptCallback {
 	
 	@Override
 	public void accepted(Server server, Channel channel) {
-		System.out.println("New Inconming connection from peer : "+channel.getRemoteAddress().toString());
+		System.out.println("New Inconming connection from peer : "+channel.getRemoteAddress().toString());		
 		((NioEngine)engine).getChannelList().add(channel);
 		engine.acceptCount++;
 	}

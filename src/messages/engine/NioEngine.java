@@ -19,22 +19,48 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class NioEngine extends Engine {
 
+	private int id ;
+	private int lamport_timestamp = 0 ;
+	private int listening_port ;
 	private List<Channel> channel_list;
 	private Selector selector;
+	private PriorityQueue<Message> priority;
+	private Map<AckMessage,Integer> collection_ack ;
+	
+	
+	
 	private HashMap<Message, Long> ordered_map;
 	private NioDeliver deliver = new NioDeliver(null);
 	boolean nouveau_venu = false;
-	private PriorityQueue<Message> priority;
+	
 
 	public NioEngine() throws IOException {
 		selector = Selector.open();
 		channel_list = new LinkedList<Channel>();
-		ordered_map = new HashMap<Message, Long>();
 		Comparator<Message> compare = new Comparateur_Message();
-		priority = new PriorityQueue<>(50, compare);
+		priority = new PriorityQueue<Message>(50);
+		collection_ack = new HashMap<AckMessage,Integer>();
+	}
+
+	public int getId() {
+		return id;
+	}
+
+	public void setId(int id) {
+		this.id = id;
+	}
+
+	public int getTimestamp() {
+		return lamport_timestamp;
+	}
+
+	public void setTimestamp(int lamport_timestamp) {
+		this.lamport_timestamp = lamport_timestamp;
 	}
 
 	@Override
@@ -105,8 +131,6 @@ public class NioEngine extends Engine {
 							SocketChannel client = (SocketChannel) ky.channel();
 
 							NioChannel pair = (NioChannel) ky.attachment();
-							NioDeliver delivercallback = (NioDeliver) pair
-									.getDeliverCallback();
 							NioConnect connectcallback = (NioConnect) pair
 									.getConnectcallback();
 
@@ -166,7 +190,8 @@ public class NioEngine extends Engine {
 		ServerSocketChannel serverchannel = ServerSocketChannel.open();
 		InetSocketAddress hostAddress = new InetSocketAddress("localhost", port);
 		serverchannel.bind(hostAddress);
-
+		listening_port = port ;
+		
 		serveur = new ConcreteServer(serverchannel);
 		System.out.println("Listening Incoming connections on Port :"
 				+ serveur.getPort());
@@ -214,6 +239,12 @@ public class NioEngine extends Engine {
 		return channel_list;
 	}
 
+	public synchronized void addToMap2(Message m){
+			Integer numb_ack = collection_ack.get(m) ;
+			Integer new_value_ack = numb_ack == null ? 1 : numb_ack+1 ;
+			collection_ack.put((AckMessage)m,new_value_ack);
+	}
+	
 	class Comparateur implements Comparator {
 
 		Map<Message, Long> tuple;
@@ -246,7 +277,7 @@ public class NioEngine extends Engine {
 		}
 	}
 
-	public synchronized void addToMap(Message mess, Long ack) {
+	/*public synchronized void addToMap(Message mess, Long ack) {
 
 		if (ack == null) {
 
@@ -344,7 +375,7 @@ public class NioEngine extends Engine {
 
 		return null;
 
-	}
+	}*/
 
 	public synchronized List<Channel> getChannel_list() {
 		return channel_list;

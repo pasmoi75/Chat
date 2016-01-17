@@ -31,7 +31,7 @@ public abstract class Channel {
    * @param offset
    * @param length
    */
-  public abstract void send(byte[] bytes, int offset, int length, int type);
+  public abstract void send(byte[] bytes, int offset, int length);
 
   
   public abstract void close();
