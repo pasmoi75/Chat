@@ -27,6 +27,7 @@ public class NioChannel extends Channel {
 	private DeliverCallback delivercallback;
 	private ConnectCallback connectcallback;
 	private boolean nouveau_venu;
+	private boolean blocked;
 	private int unreadposition ;
 	private Integer local_port;
 
@@ -246,7 +247,7 @@ public class NioChannel extends Channel {
 	@Override
 	public void send(byte[] bytes, int offset, int length) {
 		// System.out.println("Buffer position : "+send_buffer.position()+" \nBuffer capacity :"+send_buffer.capacity()+" \nBuffer Limit :"+send_buffer.limit());
-		/*if (send_buffer.capacity() - send_buffer.position() > length + 21) {
+		if (send_buffer.capacity() - send_buffer.position() > length + 21) {
 
 			try {				
 				send_buffer.putInt(length+17);
@@ -268,7 +269,7 @@ public class NioChannel extends Channel {
 
 		} else {
 			System.out.println("Send Buffer is Full");
-		}*/
+		}
 
 	}	
 	
@@ -379,6 +380,14 @@ public class NioChannel extends Channel {
 
 	public Integer getLocal_port() {
 		return local_port;
+	}
+
+	public boolean isBlocked() {
+		return blocked;
+	}
+
+	public void setBlocked(boolean blocked) {
+		this.blocked = blocked;
 	}
 
 	public void setLocal_port(Integer local_port) {

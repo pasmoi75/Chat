@@ -85,7 +85,7 @@ public class Main {
 						for (Channel channel : ((NioEngine) engine)
 								.getChannelList()) {
 							// A VOIR
-							((NioChannel)channel).sendmessage(bytes, 0, bytes.length,daute);
+							((NioChannel)channel).send(bytes, 0, bytes.length);
 						}
 					}
 					continuer = false;

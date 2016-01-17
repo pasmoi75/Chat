@@ -4,25 +4,47 @@ import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 
 public class NioDeliver implements DeliverCallback {
-	
-	private Channel channel ;
-	
-	public NioDeliver(Channel channel){
-		this.channel = channel ;
+
+	private Channel channel;
+
+	public NioDeliver(Channel channel) {
+		this.channel = channel;
 	}
-	
-	public Channel getChannel(){
-		return channel ;
+
+	public Channel getChannel() {
+		return channel;
 	}
 
 	@Override
 	public void deliver(Channel channel, byte[] bytes) {
-	
-			System.out.println("Received from: " + ((NioChannel)channel).getChannel().socket().getRemoteSocketAddress());
-			for(int i = 0 ; i < bytes.length; i++){
-				System.out.print(bytes[i]+" ");				
+
+		ByteBuffer buffer = ByteBuffer.allocate(bytes.length);
+		buffer.put(bytes);
+		int length = buffer.getInt();
+		byte messageID = buffer.get();
+
+		switch (messageID) {
+		case 0:
+
+			byte[] deliver_array = new byte[length - 17];
+			int sender_id = buffer.getInt();
+			int lamport_timestamp = buffer.getInt();
+			buffer.get(deliver_array, 0, deliver_array.length);
+			long checksum = buffer.getLong();
+			for (int i = 0; i < deliver_array.length; i++) {
+				System.out.print(deliver_array[i] + " ");
 			}
-			System.out.println("\n"+"---------------------------------------------------");
+			System.out.println("\n"
+					+ "---------------------------------------------------");
+
+			break;
+
+		case 3:
+			
+			((NioChannel)channel).setBlocked(true);
+			break;
+		}
+
 	}
 
 }
