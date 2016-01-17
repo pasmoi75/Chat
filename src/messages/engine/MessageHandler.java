@@ -11,6 +11,10 @@ public class MessageHandler {
 	
 	private NioEngine engine ;
 	
+	public MessageHandler(NioEngine engine){
+		this.engine = engine ;
+	}
+	
 	public void handleMessage(ByteBuffer buffer,NioChannel channel) throws Exception{
 		
 		int length = buffer.getInt() ;
@@ -32,7 +36,7 @@ public class MessageHandler {
 					//Penser à enlever le message de la queue si le checksum n'est pas bon
 					if(checkMessage(deliver_array,checksum)){
 						Message m = new DataMessage(lamport_timestamp, sender_id,deliver_array);
-						((NioEngine)channel.getEngine()).addToMap2(m);
+						engine.addMessageToQueue(m);
 						
 						/*Building ACK*/
 						ByteBuffer ack_payload = ByteBuffer.allocate(8);
@@ -55,7 +59,7 @@ public class MessageHandler {
 				 	byte[] ack_payload_array = new byte[8];
 				 	buffer.get(ack_payload_array, 0, ack_payload_array.length);
 				 	Message m = new AckMessage(lamport_timestamp,id_sender,ack_payload_array);
-				 	((NioEngine)channel.getEngine()).addToMap2(m);
+				 	engine.addToMap2((AckMessage)m);
 				 	break;
 			 
 			 case 2 : 

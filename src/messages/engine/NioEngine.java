@@ -32,6 +32,7 @@ public class NioEngine extends Engine {
 	private PriorityQueue<Message> priority;
 	private Map<AckMessage,Integer> collection_ack ;
 	private Map<Integer,byte[]> peers_map ;
+	private MessageHandler handler;
 	
 	
 	
@@ -46,6 +47,7 @@ public class NioEngine extends Engine {
 		priority = new PriorityQueue<Message>(50);
 		collection_ack = new HashMap<AckMessage,Integer>();
 		peers_map = new TreeMap<Integer,byte[]>();
+		handler = new MessageHandler(this);
 	}
 
 	public int getId() {
@@ -141,7 +143,7 @@ public class NioEngine extends Engine {
 								if (bytesread > 0) {
 									buffer.flip();
 									readCount += bytesread;
-									pair.handleMessage(buffer);
+									handler.handleMessage(buffer,pair);
 
 								} else if (bytesread == -1) {
 									System.out
@@ -151,6 +153,9 @@ public class NioEngine extends Engine {
 							} catch (IOException e) {
 								e.printStackTrace();
 								connectcallback.closed(pair);
+							} catch (Exception e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
 							}
 						}
 						if (ky.isValid() && ky.isWritable()) {
@@ -240,10 +245,14 @@ public class NioEngine extends Engine {
 		return channel_list;
 	}
 
-	public synchronized void addToMap2(Message m){
+	public synchronized void addToMap2(AckMessage m){
 			Integer numb_ack = collection_ack.get(m) ;
 			Integer new_value_ack = numb_ack == null ? 1 : numb_ack+1 ;
-			collection_ack.put((AckMessage)m,new_value_ack);
+			collection_ack.put(m,new_value_ack);
+	}
+	
+	public synchronized void addMessageToQueue(Message m){
+			priority.add(m);
 	}
 	
 	public synchronized Map<Integer,byte[]> getPeersMap(){
