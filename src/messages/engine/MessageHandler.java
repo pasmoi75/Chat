@@ -41,6 +41,8 @@ public class MessageHandler {
 				if (checkMessage(deliver_array, checksum)) {
 					Message m = new DataMessage(lamport_timestamp, sender_id,
 							deliver_array);
+					System.out.println("Receiving "+m.getClass().getName());
+					
 					((NioEngine) channel.getEngine()).addToMap2(m);
 
 					/* Building ACK */
@@ -70,6 +72,7 @@ public class MessageHandler {
 			buffer.get(ack_payload_array, 0, ack_payload_array.length);
 			Message m = new AckMessage(lamport_timestamp, id_sender,
 					ack_payload_array);
+			System.out.println("Receiving "+m.getClass().getName());
 			((NioEngine) channel.getEngine()).addToMap2(m);
 			break;
 
@@ -78,6 +81,7 @@ public class MessageHandler {
 			id_sender = buffer.getInt();
 			lamport_timestamp = buffer.getInt();
 			m = new JoinGroupMessage(lamport_timestamp, id_sender);
+			System.out.println("Receiving "+m.getClass().getName());
 
 			/* Broadcast à tout les autres Peers */
 			Message m2 = new BroadcastJoinMessage(lamport_timestamp, id_sender);
@@ -96,6 +100,7 @@ public class MessageHandler {
 			id_sender = buffer.getInt();
 			lamport_timestamp = buffer.getInt();
 			m = new BroadcastJoinMessage(lamport_timestamp, id_sender);
+			System.out.println("Receiving "+m.getClass().getName());
 
 			/* Building ACK */
 			ByteBuffer ack_payload = ByteBuffer.allocate(8);
@@ -122,19 +127,8 @@ public class MessageHandler {
 			 	 buffer.get(payload, 0, payload.length);
 			 	 			 	
 			 	 m = new HelloMessage(lamport_timestamp,id_sender,payload);
+			 	 System.out.println("Receiving "+m.getClass().getName());
 			 	 ((NioChannel)channel).setBlocked(false);
-			 	 
-				/*Building ACK*/
-//				 ack_payload = ByteBuffer.allocate(8);
-//				 ack_payload.putInt(id_sender);
-//				 ack_payload.putInt(lamport_timestamp);
-//				 ack_payload.flip();
-//					
-//			     m2 = new AckMessage(lamport_timestamp,id_sender,ack_payload.array());
-//				 for (Channel other_channel : ((NioEngine) channel.getEngine()).getChannelList()) {
-//						byte [] message_array = m2.sendMessage() ;
-//						other_channel.send(message_array,0,message_array.length);
-//				 }
 				 break ;
 			  
 			 case 5 :
@@ -143,6 +137,9 @@ public class MessageHandler {
 			 	 lamport_timestamp = buffer.getInt();
 			 	 byte[] members_list = new byte[length-9];
 			 	 buffer.get(members_list, 0, members_list.length);
+			 	 
+			 	 m = new MemberListMessage(lamport_timestamp,id_sender,members_list);
+			 	 System.out.println("Receiving "+m.getClass().getName());
 			 	 
 			 	 for(int i = 0 ; i<= members_list.length - 10 ; i=i+10){
 			 		 /*Reading Peer Id*/

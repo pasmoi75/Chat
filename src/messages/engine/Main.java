@@ -30,7 +30,6 @@ public class Main {
 			if (args.length > 1) {
 				try {
 					port = Integer.parseInt(args[1]);
-					System.out.println("VALEUR DU PORT: " + port);
 				} catch (NumberFormatException e) {
 					System.out
 							.println("Warning : Args[1] must be an Integer (0-65535)");
@@ -41,10 +40,8 @@ public class Main {
 			if (args.length > 2) {
 				for (int i = 2; i < args.length; i++) {
 					try {
-						((NioEngine) engine).nouveau_venu = true;
 						int porte = Integer.parseInt(args[i]);
-						NioChannel channel = new NioChannel(engine,
-								InetAddress.getByName("localhost"), porte, port);
+						NioChannel channel = new NioChannel(engine,InetAddress.getByName("localhost"), porte, port);						
 					} catch (NumberFormatException e) {
 						System.out
 								.println("Warning : Args[i] must be an Integer (0-65535)");
@@ -65,27 +62,42 @@ public class Main {
 			 */
 
 			boolean continuer = true;
+			
+			Thread.sleep(2000);
+			
+			/*JoinGroup Request*/
+			if(args.length > 2){
+				int lamport_timestamp = ((NioEngine)engine).getTimestamp();
+				int id_sender = ((NioEngine)engine).getId();
+				Message m = new JoinGroupMessage(lamport_timestamp,id_sender);
+				byte[] message_array = m.sendMessage() ;
+				for (Channel channel : ((NioEngine) engine)
+					.getChannelList()) {
+					((NioChannel)channel).send(message_array, 0, message_array.length);
+				}
+			}
 
 			while (continuer) {
 				if (((NioEngine) engine).getChannelList().size() > 1) {
 					for (int k = 0; k < 3; k++) {
-//						Random random = new Random(System.currentTimeMillis());
-//						int length = random.nextInt(Byte.MAX_VALUE);
-						int length = 4 ;
+						Random random = new Random(System.currentTimeMillis());
+						int length = random.nextInt(Byte.MAX_VALUE);
 						System.out.println("Length :" + length);
-						Date date = new Date();
-						Long daute = date.getTime();
-
-						byte bytes[] = new byte[length];
-
-
+						
+						byte bytes[] = new byte[length] ;
 						for (int i = 0; i < length; i++) {
 							bytes[i] = (byte) i;
 						}
+						
+						 int lamport_timestamp = ((NioEngine)engine).getTimestamp();
+						 int id_sender = ((NioEngine)engine).getId();
+						 Message m = new DataMessage(lamport_timestamp,id_sender,bytes);
+						 byte[] message_array = m.sendMessage() ;
+
 						for (Channel channel : ((NioEngine) engine)
 								.getChannelList()) {
 							// A VOIR
-							((NioChannel)channel).send(bytes, 0, bytes.length);
+							((NioChannel)channel).send(message_array, 0, message_array.length);
 						}
 					}
 					continuer = false;
@@ -101,6 +113,8 @@ public class Main {
 			 */
 
 		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 

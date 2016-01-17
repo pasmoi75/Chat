@@ -67,14 +67,18 @@ public class NioEngine extends Engine {
 			boolean ok = true;
 
 			while (ok) {
+				if(collection_ack.size() > 0 )
 				System.out.println("TAILLE : " + collection_ack.size());
-
 				Message mess = priority.peek();		
-				if (mess != null && collection_ack.get(mess) == getChannel_list().size()) {
-					System.out.println("BON SIGNE");
-					deliver.deliver(getChannel_list().get(0),
-							mess.sendMessage());
-					mess = priority.poll();
+				
+				if (mess != null) {
+					AckMessage related_ack = new AckMessage(mess.id_sender,mess.timestamp);
+					Integer numb_ack = collection_ack.get(related_ack);					
+					if(numb_ack != null && numb_ack.intValue() == channel_list.size()){
+						System.out.println("BON SIGNE");
+						deliver.deliver(getChannel_list().get(0),mess.sendMessage());
+						mess = priority.poll();
+					}					
 				} else {
 					ok = false;
 				}
@@ -83,7 +87,7 @@ public class NioEngine extends Engine {
 			try {
 				int keys_number = selector.select(500);
 				if (keys_number > 0) {
-					// System.out.println("Number of keys :" + keys_number);
+				 System.out.println("Number of keys :" + keys_number);
 					Set<SelectionKey> selectedKeys = selector.selectedKeys();
 					Iterator<SelectionKey> iter = selectedKeys.iterator();
 
@@ -91,9 +95,9 @@ public class NioEngine extends Engine {
 
 						SelectionKey ky = iter.next();
 						if (ky.isValid())
-							// System.out.println("Keys Ready Ops :" +
-							// ky.readyOps() + " InterestOps :" +
-							// ky.interestOps());
+							System.out.println("Keys Ready Ops :" +
+							 ky.readyOps() + " InterestOps :" +
+							ky.interestOps());
 							if (ky.isValid() && ky.isAcceptable()) {
 								SocketChannel client;
 								try {
@@ -247,7 +251,7 @@ public class NioEngine extends Engine {
 	public synchronized void addToMap2(Message m) {
 
 		if (m instanceof AckMessage) {
-			Integer numb_ack = collection_ack.get(m);
+			Integer numb_ack = collection_ack.get((AckMessage)m);
 			Integer new_value_ack = numb_ack == null ? 1 : numb_ack + 1;
 			collection_ack.put((AckMessage) m, new_value_ack);
 		} else {

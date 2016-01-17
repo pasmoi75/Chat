@@ -10,6 +10,12 @@ public class AckMessage extends Message{
 		messageID = 1 ;
 	}
 	
+	public AckMessage(int emitter,int emitter_timestamp){
+		super(0,0,null);
+		this.message_emitter = emitter ;
+		this.message_timestamp = emitter_timestamp;
+	}
+	
 	
 	
 	/* Pour des ACK on compare les champs MESSAGE_EMITTER & MESSAGE_TIMESTAMP */	
