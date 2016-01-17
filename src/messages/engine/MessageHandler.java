@@ -1,12 +1,17 @@
 package messages.engine;
 
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.zip.*;
 import messages.engine.NioChannel.BufferState;
 
 public class MessageHandler {
 	
-	public void handleMessage(ByteBuffer buffer,NioChannel channel){
+	private NioEngine engine ;
+	
+	public void handleMessage(ByteBuffer buffer,NioChannel channel) throws Exception{
 		
 		int length = buffer.getInt() ;
 		byte messageID = buffer.get();
@@ -94,8 +99,6 @@ public class MessageHandler {
 			 	 lamport_timestamp = buffer.getInt();
 			 	 byte[] payload = new byte[length-9];
 			 	 buffer.get(payload, 0, payload.length);
-			 	 
-			 	 //Update de sa propre liste des Peers
 			 	 			 	
 			 	 m = new HelloMessage(lamport_timestamp,id_sender,payload);
 			 	 
@@ -119,18 +122,72 @@ public class MessageHandler {
 			 	 byte[] members_list = new byte[length-9];
 			 	 buffer.get(members_list, 0, members_list.length);
 			 	 
-			 	 //Parsing de la members_list en InetAddress+port
-			 	 //On se connecte à tout les pairs
-			 	 //Envoi d'un HelloMessage à tout le monde
+			 	 for(int i = 0 ; i<= members_list.length - 10 ; i=i+10){
+			 		 /*Reading Peer Id*/
+			 		 byte[] peer_id_array = new byte[4] ;
+			 		 System.arraycopy(members_list, i, peer_id_array, 0, 4);
+			 		 int peer_id = Util.readInt32(peer_id_array, 0);
+			 		 
+			 		 /*Reading IP & Port Address*/
+			 		 byte[] peer_address = new byte[6] ;
+			 		 System.arraycopy(members_list, i+4, peer_address, 0, 6);
+			 		 
+			 		 
+			 		 engine.getPeersMap().put(peer_id, peer_address);
+			 		 byte[] ip_address = new byte[4];
+			 		 byte[] port_array = new byte[4];
+			 		 
+			 		 System.arraycopy(peer_address,0 , ip_address, 0, 4);
+			 		 System.arraycopy(peer_address,4,port_array,2,2);
+			 		 int port = Util.readInt32(port_array, 0);
+			 		 
+			 		 try {
+						NioChannel new_channel = new NioChannel(engine,InetAddress.getByAddress(peer_address),port,0);
+					} catch (UnknownHostException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (SecurityException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}			 		 
+			 	 }
+			 	 
+			 	 /*Envoi d'un message Hello à tout le monde*/
+			 	 InetAddress localaddress = InetAddress.getByName("localhost");
+			 	 int listening_port = engine.getListeningPort();
+			 	 
+			 	 byte[] hello_payload = new byte[6] ;
+			 	 System.arraycopy(localaddress.getAddress(),0,hello_payload,0, 4);
+			 	 			 	 
+			 	 byte[] port_byte4 = new byte[4];
+			 	 Util.writeInt32(port_byte4, 0, listening_port);
+			 	 System.arraycopy(port_byte4, 2, hello_payload, 4, 2);
+			 	 
+			     m = new HelloMessage(engine.getTimestamp(),engine.getId(),hello_payload);
+			 	 
+			 	 for(Channel other_channel : engine.getChannelList()){
+			 		 byte[] message_array = m.sendMessage();
+			 		 other_channel.send(message_array, 0, message_array.length);			 		 
+			 	 }
+			 	 	
+			 	 
 		}
 			
 	}
 	
 	
-	public boolean checkMessage(byte [] payload,long checksum){
+	public static boolean checkMessage(byte [] payload,long checksum){
 		Checksum sum_control = new CRC32();
 		sum_control.update(payload, 0, payload.length);
 		long checksum_value = sum_control.getValue();
 		return checksum_value == checksum ;
 	}
+	
+	
+	
+	
+	
 }
