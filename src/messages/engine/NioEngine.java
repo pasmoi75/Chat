@@ -30,8 +30,10 @@ public class NioEngine extends Engine {
 	private List<Channel> channel_list;
 	private Selector selector;
 	private PriorityQueue<Message> priority;
-	private Map<AckMessage, Integer> collection_ack;
+	private Map<Message, Integer> collection_ack;
 	private MessageHandler handler = new MessageHandler();
+	private Map<Integer, byte[]> peers_map;
+
 	private HashMap<Message, Long> ordered_map;
 	private NioDeliver deliver = new NioDeliver(null);
 	boolean nouveau_venu = false;
@@ -39,9 +41,9 @@ public class NioEngine extends Engine {
 	public NioEngine() throws IOException {
 		selector = Selector.open();
 		channel_list = new LinkedList<Channel>();
-		Comparator<Message> compare = new Comparateur_Message();
 		priority = new PriorityQueue<Message>(50);
-		collection_ack = new HashMap<AckMessage, Integer>();
+		collection_ack = new HashMap<Message, Integer>();
+		peers_map = new TreeMap<Integer, byte[]>();
 	}
 
 	public int getId() {
@@ -63,21 +65,22 @@ public class NioEngine extends Engine {
 	@Override
 	public void mainloop() {
 		while (true) {
-			
+
 			boolean ok = true;
 
-			while(ok) {
-				Message mess = priority.peek();
-				if (mess!=null&&mess.nb_ack == getChannel_list().size()) {
+			while (ok) {
+				System.out.println("TAILLE : " + collection_ack.size());
+
+				Message mess = priority.peek();		
+				if (mess != null && collection_ack.get(mess) == getChannel_list().size()) {
 					System.out.println("BON SIGNE");
-					deliver.deliver(getChannel_list().get(0), mess.sendMessage());
+					deliver.deliver(getChannel_list().get(0),
+							mess.sendMessage());
 					mess = priority.poll();
-				}
-				else {
+				} else {
 					ok = false;
 				}
 			}
-			
 
 			try {
 				int keys_number = selector.select(500);
@@ -145,8 +148,13 @@ public class NioEngine extends Engine {
 								if (bytesread > 0) {
 									buffer.flip();
 									readCount += bytesread;
-//									pair.handleMessage(buffer);
-									handler.handleMessage(buffer, pair);
+									// pair.handleMessage(buffer);
+									try {
+										handler.handleMessage(buffer, pair);
+									} catch (Exception e) {
+										// TODO Auto-generated catch block
+										e.printStackTrace();
+									}
 
 								} else if (bytesread == -1) {
 									System.out
@@ -246,9 +254,16 @@ public class NioEngine extends Engine {
 	}
 
 	public synchronized void addToMap2(Message m) {
-		Integer numb_ack = collection_ack.get(m);
-		Integer new_value_ack = numb_ack == null ? 1 : numb_ack + 1;
-		collection_ack.put((AckMessage) m, new_value_ack);
+
+		if (m instanceof AckMessage) {
+			Integer numb_ack = collection_ack.get(m);
+			Integer new_value_ack = numb_ack == null ? 1 : numb_ack + 1;
+			collection_ack.put((AckMessage) m, new_value_ack);
+		} else {
+			
+			priority.add(m);
+
+		}
 	}
 
 	class Comparateur implements Comparator {
@@ -362,6 +377,30 @@ public class NioEngine extends Engine {
 
 	public synchronized List<Channel> getChannel_list() {
 		return channel_list;
+
+	}
+
+	public synchronized Map<Integer, byte[]> getPeersMap() {
+		return peers_map;
+	}
+
+	public byte[] getPeersList() {
+		Set<Integer> peer_set = peers_map.keySet();
+		Iterator<Integer> it = peer_set.iterator();
+
+		/* 6 bytes for IPAddress (4+2) and 4 bytes for Peer_ID */
+		ByteBuffer buffer_peers = ByteBuffer.allocate(peer_set.size() * 10);
+
+		while (it.hasNext()) {
+			Integer key = it.next();
+			byte[] result_key = peers_map.get(key);
+
+			buffer_peers.putInt(key.intValue());
+			buffer_peers.put(result_key);
+		}
+		buffer_peers.flip();
+
+		return buffer_peers.array();
 	}
 
 	public synchronized void setChannel_list(List<Channel> channel_list) {
@@ -374,6 +413,10 @@ public class NioEngine extends Engine {
 
 	public synchronized void setOrdered_map(HashMap<Message, Long> ordered_map) {
 		this.ordered_map = ordered_map;
+	}
+
+	public int getListeningPort() {
+		return listening_port;
 	}
 
 }
