@@ -9,7 +9,6 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -19,8 +18,6 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class NioEngine extends Engine {
 
@@ -30,7 +27,7 @@ public class NioEngine extends Engine {
 	private List<Channel> channel_list;
 	private Selector selector;
 	private PriorityQueue<Message> priority;
-	private Map<Message, Integer> collection_ack;
+	private Map<AckMessage, Integer> collection_ack;
 	private MessageHandler handler = new MessageHandler();
 	private Map<Integer, byte[]> peers_map;
 
@@ -42,7 +39,7 @@ public class NioEngine extends Engine {
 		selector = Selector.open();
 		channel_list = new LinkedList<Channel>();
 		priority = new PriorityQueue<Message>(50);
-		collection_ack = new HashMap<Message, Integer>();
+		collection_ack = new HashMap<AckMessage, Integer>();
 		peers_map = new TreeMap<Integer, byte[]>();
 	}
 
@@ -69,10 +66,25 @@ public class NioEngine extends Engine {
 			boolean ok = true;
 
 			while (ok) {
-				System.out.println("TAILLE : " + collection_ack.size());
+				int size = collection_ack.size();
+				if(size!=0) {
+//				System.out.println("TAILLE : " + size);
+				System.exit(-1);
+				}
+//				if(collection_ack.size()==1)
+//					System.exit(-1);
 
-				Message mess = priority.peek();		
-				if (mess != null && collection_ack.get(mess) == getChannel_list().size()) {
+				Message mess = priority.peek();	
+				AckMessage fake_ack = null;
+				if(mess!=null){
+
+					System.out.println(mess.id_sender + mess.timestamp);
+					fake_ack = new AckMessage(mess.id_sender, mess.timestamp);
+//					System.exit(-1);
+				}
+			
+				
+				if (mess != null && size!=0&&collection_ack.get(fake_ack) == getChannel_list().size()) {
 					System.out.println("BON SIGNE");
 					deliver.deliver(getChannel_list().get(0),
 							mess.sendMessage());

@@ -10,6 +10,12 @@ public class AckMessage extends Message{
 		messageID = 1 ;
 	}
 	
+	public AckMessage(int emitter, int timestampemitter){
+		super(0, 0, null);
+		message_emitter=emitter;
+		message_timestamp = timestampemitter;
+	}
+	
 	
 	
 	/* Pour des ACK on compare les champs MESSAGE_EMITTER & MESSAGE_TIMESTAMP */	

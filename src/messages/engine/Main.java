@@ -24,6 +24,8 @@ public class Main {
 			String name = args.length > 0 ? args[0] : "";
 
 			final Engine engine = new NioEngine();
+			((NioEngine)engine).setTimestamp(12);
+			((NioEngine)engine).setId(12);
 
 			NioServer serveur1;
 			int port = 0;
@@ -67,7 +69,7 @@ public class Main {
 			boolean continuer = true;
 
 			while (continuer) {
-				if (((NioEngine) engine).getChannelList().size() > 1) {
+				if (((NioEngine) engine).getChannelList().size() > 0) {
 					for (int k = 0; k < 3; k++) {
 //						Random random = new Random(System.currentTimeMillis());
 //						int length = random.nextInt(Byte.MAX_VALUE);

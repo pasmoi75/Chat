@@ -250,8 +250,8 @@ public class NioChannel extends Channel {
 		if (send_buffer.capacity() - send_buffer.position() > length + 21) {
 
 			try {				
-				send_buffer.putInt(length+17);
-				send_buffer.put((byte)0);
+				send_buffer.putInt(length+14);
+//				send_buffer.put((byte)0);
 				send_buffer.putInt(((NioEngine)engine).getId());
 				send_buffer.putInt(((NioEngine)engine).getTimestamp());
 				if (bytes != null)
