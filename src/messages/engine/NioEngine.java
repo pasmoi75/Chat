@@ -24,30 +24,24 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class NioEngine extends Engine {
 
-	private int id ;
-	private int lamport_timestamp = 0 ;
-	private int listening_port ;
+	private int id;
+	private int lamport_timestamp = 0;
+	private int listening_port;
 	private List<Channel> channel_list;
 	private Selector selector;
 	private PriorityQueue<Message> priority;
-	private Map<AckMessage,Integer> collection_ack ;
-	private Map<Integer,byte[]> peers_map ;
-	private MessageHandler handler;
-	
-	
-	
-	private HashMap<Message, Long> ordered_map;
-	private NioDeliver deliver = new NioDeliver(null);
-	boolean nouveau_venu = false;
-	
+	private Map<AckMessage, Integer> collection_ack;
+	private MessageHandler handler = new MessageHandler(this);
+	private Map<Integer, byte[]> peers_map;
+	private NioDeliver deliver = new NioDeliver(this) ;
+
 
 	public NioEngine() throws IOException {
 		selector = Selector.open();
 		channel_list = new LinkedList<Channel>();
 		priority = new PriorityQueue<Message>(50);
-		collection_ack = new HashMap<AckMessage,Integer>();
-		peers_map = new TreeMap<Integer,byte[]>();
-		handler = new MessageHandler(this);
+		collection_ack = new HashMap<AckMessage, Integer>();
+		peers_map = new TreeMap<Integer, byte[]>();
 	}
 
 	public int getId() {
@@ -70,10 +64,19 @@ public class NioEngine extends Engine {
 	public void mainloop() {
 		while (true) {
 
-			for (Message mess : priority) {
-				if (mess.nb_ack == getChannelList().size()) {
+			boolean ok = true;
+
+			while (ok) {
+				System.out.println("TAILLE : " + collection_ack.size());
+
+				Message mess = priority.peek();		
+				if (mess != null && collection_ack.get(mess) == getChannel_list().size()) {
 					System.out.println("BON SIGNE");
-					((NioChannel)getChannelList().get(0)).getDeliverCallback().deliver(getChannelList().get(0), mess.message);
+					deliver.deliver(getChannel_list().get(0),
+							mess.sendMessage());
+					mess = priority.poll();
+				} else {
+					ok = false;
 				}
 			}
 
@@ -143,7 +146,13 @@ public class NioEngine extends Engine {
 								if (bytesread > 0) {
 									buffer.flip();
 									readCount += bytesread;
-									handler.handleMessage(buffer,pair);
+									// pair.handleMessage(buffer);
+									try {
+										handler.handleMessage(buffer, pair);
+									} catch (Exception e) {
+										// TODO Auto-generated catch block
+										e.printStackTrace();
+									}
 
 								} else if (bytesread == -1) {
 									System.out
@@ -196,8 +205,8 @@ public class NioEngine extends Engine {
 		ServerSocketChannel serverchannel = ServerSocketChannel.open();
 		InetSocketAddress hostAddress = new InetSocketAddress("localhost", port);
 		serverchannel.bind(hostAddress);
-		listening_port = port ;
-		
+		listening_port = port;
+
 		serveur = new ConcreteServer(serverchannel);
 		System.out.println("Listening Incoming connections on Port :"
 				+ serveur.getPort());
@@ -231,68 +240,57 @@ public class NioEngine extends Engine {
 
 	}
 
-	public synchronized void toMap(TreeMap<Message, Long> treemap) {
-		int i = 0;
-		HashMap<Message, Long> map = new HashMap<>();
-		for (Message mess : treemap.keySet()) {
-			map.put(mess, treemap.get(mess));
-		}
-
-		map = ordered_map;
-	}
-
 	public synchronized List<Channel> getChannelList() {
 		return channel_list;
 	}
 
-	public synchronized void addToMap2(AckMessage m){
-			Integer numb_ack = collection_ack.get(m) ;
-			Integer new_value_ack = numb_ack == null ? 1 : numb_ack+1 ;
-			collection_ack.put(m,new_value_ack);
-	}
-	
-	public synchronized void addMessageToQueue(Message m){
+	public synchronized void addToMap2(Message m) {
+
+		if (m instanceof AckMessage) {
+			Integer numb_ack = collection_ack.get(m);
+			Integer new_value_ack = numb_ack == null ? 1 : numb_ack + 1;
+			collection_ack.put((AckMessage) m, new_value_ack);
+		} else {
+			
 			priority.add(m);
+
+		}
 	}
-	
-	public synchronized Map<Integer,byte[]> getPeersMap(){
+
+	public synchronized List<Channel> getChannel_list() {
+		return channel_list;
+
+	}
+
+	public synchronized Map<Integer, byte[]> getPeersMap() {
 		return peers_map;
 	}
-	
-	public byte[] getPeersList(){
-		Set<Integer> peer_set = peers_map.keySet() ;
+
+	public byte[] getPeersList() {
+		Set<Integer> peer_set = peers_map.keySet();
 		Iterator<Integer> it = peer_set.iterator();
-		
+
 		/* 6 bytes for IPAddress (4+2) and 4 bytes for Peer_ID */
-		ByteBuffer buffer_peers = ByteBuffer.allocate(peer_set.size()*10);
-		
-		while(it.hasNext()){
+		ByteBuffer buffer_peers = ByteBuffer.allocate(peer_set.size() * 10);
+
+		while (it.hasNext()) {
 			Integer key = it.next();
 			byte[] result_key = peers_map.get(key);
-			
+
 			buffer_peers.putInt(key.intValue());
 			buffer_peers.put(result_key);
 		}
 		buffer_peers.flip();
-		
-		return buffer_peers.array() ;
+
+		return buffer_peers.array();
 	}
-	
 
 	public synchronized void setChannel_list(List<Channel> channel_list) {
 		this.channel_list = channel_list;
 	}
 
-	public synchronized HashMap<Message, Long> getOrdered_map() {
-		return ordered_map;
-	}
-
-	public synchronized void setOrdered_map(HashMap<Message, Long> ordered_map) {
-		this.ordered_map = ordered_map;
-	}
-
 	public int getListeningPort() {
-		return listening_port ;
+		return listening_port;
 	}
 
 }

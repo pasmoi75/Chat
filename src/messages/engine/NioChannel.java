@@ -26,7 +26,7 @@ public class NioChannel extends Channel {
 	private ByteBuffer send_buffer;
 	private DeliverCallback delivercallback;
 	private ConnectCallback connectcallback;
-	private boolean nouveau_venu;
+	private boolean blocked;
 	private int unreadposition ;
 	private Integer local_port;
 
@@ -46,11 +46,9 @@ public class NioChannel extends Channel {
 	public NioChannel(Engine engine, SocketChannel channel) {
 		this.engine = engine;
 		this.channel = channel;
-		this.delivercallback = new NioDeliver(this);
 		this.connectcallback = new NioConnect(engine, this);
 		this.rcv_buffer = ByteBuffer.allocate(1 << 8);
 		this.send_buffer = ByteBuffer.allocate(1 << 19);
-		this.nouveau_venu = ((NioEngine) engine).nouveau_venu;
 	}
 
 	/* Constructor for Outgoing connections */
@@ -58,12 +56,10 @@ public class NioChannel extends Channel {
 			int local_port) throws UnknownHostException, SecurityException,
 			IOException {
 		this.engine = engine;
-		this.delivercallback = new NioDeliver(this);
 		this.connectcallback = new NioConnect(engine, this);
 		this.rcv_buffer = ByteBuffer.allocate(1 << 19);
 		this.send_buffer = ByteBuffer.allocate(1 << 19);
 		this.engine.connect(hostAddress, port, connectcallback);
-		this.nouveau_venu = ((NioEngine) engine).nouveau_venu;
 		this.local_port = local_port;
 
 	}
@@ -175,16 +171,16 @@ public class NioChannel extends Channel {
 		return result;
 	}
 
-	public boolean isNouveau_venu() {
-		return nouveau_venu;
-	}
-
-	public void setNouveau_venu(boolean nouveau_venu) {
-		this.nouveau_venu = nouveau_venu;
-	}
-
 	public Integer getLocal_port() {
 		return local_port;
+	}
+
+	public boolean isBlocked() {
+		return blocked;
+	}
+
+	public void setBlocked(boolean blocked) {
+		this.blocked = blocked;
 	}
 
 	public void setLocal_port(Integer local_port) {
