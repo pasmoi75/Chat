@@ -71,7 +71,9 @@ public class NioEngine extends Engine {
 				/*if(collection_ack.size() > 0)
 					System.out.println(collection_ack);*/
 				
-				if (mess != null) {				
+				if (mess != null) {	
+					//System.out.println("Message qui bloque tout : "+mess.getClass().getName());
+					
 					ByteBuffer payload_ack = ByteBuffer.allocate(8);
 					payload_ack.putInt(mess.id_sender);
 					payload_ack.putInt(mess.timestamp);
