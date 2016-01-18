@@ -113,7 +113,7 @@ public class NioChannel extends Channel {
 	@Override
 	public synchronized void send(byte[] bytes, int offset, int length) {
 		System.out.println("Sending Message. Length = "+length);
-		System.out.println("Buffer position : "+send_buffer.position()+" \nBuffer capacity :"+send_buffer.capacity()+" \nBuffer Limit :"+send_buffer.limit());
+		//System.out.println("Buffer position : "+send_buffer.position()+" \nBuffer capacity :"+send_buffer.capacity()+" \nBuffer Limit :"+send_buffer.limit());
 		if (send_buffer.capacity() - send_buffer.position() > length) {
 			send_buffer.put(bytes);
 			selectionkey.interestOps(SelectionKey.OP_READ

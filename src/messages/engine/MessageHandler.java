@@ -20,11 +20,12 @@ public class MessageHandler {
 		
 		int length = buffer.getInt() ;
 		byte messageID = buffer.get();
-		System.out.println("Message Length : "+length+"Message ID :"+messageID);
+		System.out.println("Message Length : "+length+" Message ID : "+messageID);
 
 		switch (messageID) {
 		case 0: // Reception simple d'un message
-			if (length > buffer.remaining()) {
+			if (length > buffer.remaining()+1) {
+				System.out.println("Partial Message");
 				NioChannel.BufferState state = channel.new BufferState(length,
 						length - buffer.remaining());
 				channel.getReceiveBuffer().put(buffer); // Stores the partial
@@ -114,9 +115,9 @@ public class MessageHandler {
 			}
 			
 
-					break ;
+			break ;
 					
-			 case 4 :
+		case 4 :
 				 //Reception d'un Hello	
 				 id_sender = buffer.getInt();
 			 	 lamport_timestamp = buffer.getInt();
@@ -128,7 +129,7 @@ public class MessageHandler {
 			 	 ((NioChannel)channel).setBlocked(false);
 				 break ;
 			  
-			 case 5 :
+		 case 5 :
 				 //Reception d'une Liste de peers
 				 id_sender = buffer.getInt();
 			 	 lamport_timestamp = buffer.getInt();
@@ -188,6 +189,7 @@ public class MessageHandler {
 			 		 byte[] message_array = m.sendMessage();
 			 		 other_channel.send(message_array, 0, message_array.length);			 		 
 			 	 }
+			 	 break ;
 			 	 	
 		}
 		
