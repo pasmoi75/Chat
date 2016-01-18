@@ -237,6 +237,7 @@ public class MessageHandler {
 			 	 
 			 	 engine.setId(max_id+1);
 			 	 
+			 	 
 			 	 /*Envoi d'un message Hello à tout le monde*/
 			 	 InetAddress localaddress = InetAddress.getByName("localhost");
 			 	 int listening_port = engine.getListeningPort();
@@ -247,6 +248,8 @@ public class MessageHandler {
 			 	 byte[] port_byte4 = new byte[4];
 			 	 Util.writeInt32(port_byte4, 0, listening_port);
 			 	 System.arraycopy(port_byte4, 2, hello_payload, 4, 2);
+			 	 
+			 	 engine.getPeersMap().put(engine.getId(), hello_payload);
 			 	 
 			 	 engine.setTimestamp(engine.getTimestamp()+1);
 			     m = new HelloMessage(engine.getTimestamp(),engine.getId(),hello_payload);
