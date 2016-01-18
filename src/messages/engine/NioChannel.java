@@ -27,6 +27,7 @@ public class NioChannel extends Channel {
 	private DeliverCallback delivercallback;
 	private ConnectCallback connectcallback;
 	private boolean blocked;
+	private boolean nouveau_venu ;
 	private int unreadposition ;
 	private Integer local_port;
 
@@ -49,6 +50,7 @@ public class NioChannel extends Channel {
 		this.connectcallback = new NioConnect(engine, this);
 		this.rcv_buffer = ByteBuffer.allocate(1 << 8);
 		this.send_buffer = ByteBuffer.allocate(1 << 19);
+		this.nouveau_venu = true ;
 	}
 
 	/* Constructor for Outgoing connections */
@@ -61,6 +63,7 @@ public class NioChannel extends Channel {
 		this.send_buffer = ByteBuffer.allocate(1 << 19);
 		this.engine.connect(hostAddress, port, connectcallback);
 		this.local_port = local_port;
+		this.nouveau_venu = false ;
 
 	}
 	
@@ -208,6 +211,14 @@ public class NioChannel extends Channel {
 		buffer.put(bytes);
 		buffer.flip();// need flip
 		return buffer.getLong();
+	}
+	
+	public boolean isNouveauvenu(){
+		return nouveau_venu ;
+	}
+	
+	public void setNouveauvenu(boolean boule){
+		nouveau_venu = boule ;
 	}
 
 }

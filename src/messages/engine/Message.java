@@ -52,7 +52,7 @@ public abstract class Message implements Comparable<Message> {
 	}
 	
 	public byte[] sendMessage(){
-		System.out.println("Sending "+this.getClass().getName() +"\nMessage Timestamp : "+this.timestamp+" ID Sender : "+this.id_sender);
+		System.out.println("Sending "+this.getClass().getName() +" Message Timestamp : "+this.timestamp+" ID Sender : "+this.id_sender);
 		
 		int payload_length = (message == null)?0:message.length ;
 		ByteBuffer buffer = ByteBuffer.allocate(9+4+payload_length);

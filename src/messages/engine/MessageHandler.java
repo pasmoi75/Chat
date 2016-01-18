@@ -39,7 +39,7 @@ public class MessageHandler {
 				// Penser à enlever le message de la queue si le checksum n'est
 				// pas bon
 				Message m = new DataMessage(lamport_timestamp, sender_id,deliver_array);
-				System.out.println("Receiving "+m.getClass().getName());
+				System.out.println("Receiving "+m.getClass().getName()+" from "+m.id_sender);
 				
 				/*LamportClockUpdate*/
 				engine.setTimestamp(Math.max(m.timestamp,engine.getTimestamp()));
@@ -75,7 +75,7 @@ public class MessageHandler {
 			/*LamportClockUpdate*/
 			engine.setTimestamp(Math.max(m.timestamp,engine.getTimestamp()));
 			
-			System.out.println("Receiving "+m.getClass().getName()+" for Message : "+m.message_timestamp+" from "+m.message_emitter);
+			System.out.println("Receiving "+m.getClass().getName()+" for Message : "+m.message_timestamp+" from "+m.id_sender+". Emitted by : "+m.message_emitter);
 			((NioEngine) channel.getEngine()).addToMap2(m);
 			break;
 
@@ -114,6 +114,15 @@ public class MessageHandler {
 			m2 = new AckMessage(engine.getTimestamp(), engine.getId(),
 						ack_payload.array());
 			engine.addToMap2(m2);
+			} else if (engine.getChannelList().size() == 1){ //Cas particulier : Pour donner un ID au peer. Voir si meilleure solution existe
+				Message m2 = new BroadcastJoinMessage(engine.getTimestamp(), engine.getId());
+				engine.addToMap2(m2);
+				for (Channel other_channel : ((NioEngine) channel.getEngine())
+						.getChannelList()) {
+						byte[] message_array = m2.sendMessage();
+						other_channel.send(message_array, 0, message_array.length);
+					
+				}
 			}
 			
 			break;
@@ -156,6 +165,10 @@ public class MessageHandler {
 			 	 buffer.get(payload, 0, payload.length);
 			 	 			 	
 			 	 m = new HelloMessage(lamport_timestamp,id_sender,payload);
+			 	 if(payload.length == 6){
+			 		 engine.getPeersMap().put(id_sender, payload);
+			 		 System.out.println("Updating Peers Map. New Size : "+engine.getPeersMap().size());
+			 	 }
 			 	 
 			 	/*LamportClockUpdate*/
 				engine.setTimestamp(Math.max(m.timestamp,engine.getTimestamp()));
@@ -176,12 +189,15 @@ public class MessageHandler {
 					engine.setTimestamp(Math.max(m.timestamp,engine.getTimestamp()));
 			 	 
 			 	 System.out.println("Receiving "+m.getClass().getName());
+			 	 int max_id = 1 ;
 			 	 
 			 	 for(int i = 0 ; i<= members_list.length - 10 ; i=i+10){
 			 		 /*Reading Peer Id*/
 			 		 byte[] peer_id_array = new byte[4] ;
 			 		 System.arraycopy(members_list, i, peer_id_array, 0, 4);
 			 		 int peer_id = Util.readInt32(peer_id_array, 0);
+			 		 
+			 		 max_id = Math.max(max_id, peer_id);
 			 		 
 			 		 /*Reading IP & Port Address*/
 			 		 byte[] peer_address = new byte[6] ;
@@ -197,7 +213,8 @@ public class MessageHandler {
 			 		 int port = Util.readInt32(port_array, 0);
 			 		 
 			 		 try {
-						NioChannel new_channel = new NioChannel(engine,InetAddress.getByAddress(peer_address),port,0);
+						NioChannel new_channel = new NioChannel(engine,InetAddress.getByAddress(ip_address),port,0);
+						new_channel.setNouveauvenu(false);
 					} catch (UnknownHostException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
@@ -210,6 +227,8 @@ public class MessageHandler {
 					}			 		 
 			 	 }
 			 	 
+			 	 engine.setId(max_id+1);
+			 	 
 			 	 /*Envoi d'un message Hello à tout le monde*/
 			 	 InetAddress localaddress = InetAddress.getByName("localhost");
 			 	 int listening_port = engine.getListeningPort();
@@ -221,6 +240,7 @@ public class MessageHandler {
 			 	 Util.writeInt32(port_byte4, 0, listening_port);
 			 	 System.arraycopy(port_byte4, 2, hello_payload, 4, 2);
 			 	 
+			 	 engine.setTimestamp(engine.getTimestamp()+1);
 			     m = new HelloMessage(engine.getTimestamp(),engine.getId(),hello_payload);
 			 	 
 			 	 for(Channel other_channel : engine.getChannelList()){

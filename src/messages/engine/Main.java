@@ -41,13 +41,15 @@ public class Main {
 				for (int i = 2; i < args.length; i++) {
 					try {
 						int porte = Integer.parseInt(args[i]);
-						NioChannel channel = new NioChannel(engine,InetAddress.getByName("localhost"), porte, port);						
+						NioChannel channel = new NioChannel(engine,InetAddress.getByName("localhost"), porte, port);
 					} catch (NumberFormatException e) {
 						System.out
 								.println("Warning : Args[i] must be an Integer (0-65535)");
 						continue;
 					}
 				}
+			} else {
+				((NioEngine)engine).setId(1);
 			}
 			Thread thread_engine = new Thread(new Runnable() {
 				public void run() {
@@ -78,7 +80,7 @@ public class Main {
 			}
 
 			while (continuer) {
-				if (((NioEngine) engine).getChannelList().size() > 1) {
+				if (((NioEngine) engine).getChannelList().size() > 1 && ((NioEngine)engine).getId() != 0) {
 					for (int k = 0; k < 3; k++) {
 						Random random = new Random(System.currentTimeMillis());
 						int length = random.nextInt(Byte.MAX_VALUE);
