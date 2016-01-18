@@ -72,13 +72,19 @@ public class NioEngine extends Engine {
 				Message mess = priority.peek();		
 				
 				if (mess != null) {
-					AckMessage related_ack = new AckMessage(mess.id_sender,mess.timestamp);
+					ByteBuffer payload_ack = ByteBuffer.allocate(8);
+					payload_ack.putInt(mess.id_sender);
+					payload_ack.putInt(mess.timestamp);
+					AckMessage related_ack = new AckMessage(mess.id_sender, mess.timestamp, payload_ack.array());
+
 					Integer numb_ack = collection_ack.get(related_ack);					
 					if(numb_ack != null && numb_ack.intValue() == channel_list.size()){
 						System.out.println("BON SIGNE");
 						deliver.deliver(getChannel_list().get(0),mess.sendMessage());
 						mess = priority.poll();
-					}					
+					} else {
+						ok = false ;
+					}
 				} else {
 					ok = false;
 				}
@@ -151,6 +157,7 @@ public class NioEngine extends Engine {
 									buffer.flip();
 									readCount += bytesread;
 									// pair.handleMessage(buffer);
+									System.out.println("Bytes read : "+bytesread);
 									try {
 										handler.handleMessage(buffer, pair);
 									} catch (Exception e) {
@@ -182,8 +189,12 @@ public class NioEngine extends Engine {
 								int bytesWritten = client.write(pair
 										.getSendBuffer());
 								writeCount += bytesWritten;
+								System.out.println("bytes Written : "+bytesWritten);
+								pair.getSendBuffer().compact() ;
+								//System.out.println("Buffer position : "+pair.getSendBuffer().position()+" \nBuffer capacity :"+pair.getSendBuffer().capacity()+" \nBuffer Limit :"+pair.getSendBuffer().limit());
 								ky.interestOps(SelectionKey.OP_READ);
-								// System.out.println("bytes Written : "+bytesWritten);
+								
+								
 								if (!client.isOpen()) {
 									connectcallback.closed(pair);
 								}

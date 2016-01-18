@@ -20,6 +20,7 @@ public class MessageHandler {
 		
 		int length = buffer.getInt() ;
 		byte messageID = buffer.get();
+		System.out.println("Message Length : "+length+"Message ID :"+messageID);
 
 		switch (messageID) {
 		case 0: // Reception simple d'un message
@@ -30,30 +31,26 @@ public class MessageHandler {
 														// message in a Buffer
 			} else {
 				System.out.println(length);
-				byte[] deliver_array = new byte[length - 17];
+				byte[] deliver_array = new byte[length - 9];
 				int sender_id = buffer.getInt();
 				int lamport_timestamp = buffer.getInt();
 				buffer.get(deliver_array, 0, deliver_array.length);
-				long checksum = buffer.getLong();
 
 				// Penser à enlever le message de la queue si le checksum n'est
 				// pas bon
-				if (checkMessage(deliver_array, checksum)) {
-					Message m = new DataMessage(lamport_timestamp, sender_id,
-							deliver_array);
-					System.out.println("Receiving "+m.getClass().getName());
-					
-					((NioEngine) channel.getEngine()).addToMap2(m);
+				Message m = new DataMessage(lamport_timestamp, sender_id,deliver_array);
+				System.out.println("Receiving "+m.getClass().getName());
+				((NioEngine) channel.getEngine()).addToMap2(m);
 
-					/* Building ACK */
-					ByteBuffer ack_payload = ByteBuffer.allocate(8);
-					ack_payload.putInt(sender_id);
-					ack_payload.putInt(lamport_timestamp);
-					ack_payload.flip();
+				/* Building ACK */
+				ByteBuffer ack_payload = ByteBuffer.allocate(8);
+				ack_payload.putInt(sender_id);
+				ack_payload.putInt(lamport_timestamp);
+				ack_payload.flip();
 
-					Message m2 = new AckMessage(lamport_timestamp, sender_id,
+				Message m2 = new AckMessage(lamport_timestamp, sender_id,
 							ack_payload.array());
-					for (Channel other_channel : ((NioEngine) channel
+				for (Channel other_channel : ((NioEngine) channel
 							.getEngine()).getChannelList()) {
 						byte[] message_array = m2.sendMessage();
 						other_channel.send(message_array, 0,
@@ -61,7 +58,7 @@ public class MessageHandler {
 					}
 
 
-				}
+				
 			}
 			break;
 
@@ -193,15 +190,23 @@ public class MessageHandler {
 			 	 }
 			 	 	
 		}
+		
+		if(buffer.hasRemaining()){
+			System.out.println("Remaining in the buffer : "+buffer.remaining());
+			handleMessage(buffer,channel);
+		}
 
 	}
 	
 	
 	public static boolean checkMessage(byte [] payload,long checksum){
+		System.out.println("Checking checksum");
 		Checksum sum_control = new CRC32();
 		sum_control.update(payload, 0, payload.length);
 		long checksum_value = sum_control.getValue();
-		return checksum_value == checksum;
+		System.out.println("payload sum : "+checksum_value+" Checksum : "+checksum);
+		
+		return true ;
 	}
 	
 	
