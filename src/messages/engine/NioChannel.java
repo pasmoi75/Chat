@@ -18,6 +18,16 @@ import java.util.zip.CRC32;
 import java.util.zip.Checksum;
 
 public class NioChannel extends Channel {
+	
+	public final static int READING_LENGTH = 1 ;
+	public final static int READING_MESSAGEID = 2 ;
+	public final static int READING_SENDERID = 3 ;
+	public final static int READING_CLOCK = 4 ;
+	public final static int READING_PAYLOAD = 5 ;
+	
+	private int status ;
+	private int status_remaining ;
+	private boolean incomplete_message ;
 
 	private Engine engine;
 	private SelectionKey selectionkey;
@@ -219,6 +229,20 @@ public class NioChannel extends Channel {
 	
 	public void setNouveauvenu(boolean boule){
 		nouveau_venu = boule ;
+	}
+	
+	public void setStatus(int statut,int remaining){
+		this.status = statut ;
+		this.status_remaining = remaining ;
+		this.incomplete_message = true ;
+	}
+	
+	public int getStatus(){
+		return status ;
+	}
+	
+	public int getStatusRemaining(){
+		return status_remaining ;
 	}
 
 }

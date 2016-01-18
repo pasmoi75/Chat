@@ -17,8 +17,8 @@ public class MessageHandler {
 	
 	public void handleMessage(ByteBuffer buffer,NioChannel channel) throws Exception{
 		
-		int length = buffer.getInt() ;
-		byte messageID = buffer.get();
+		int length = read4bytes(buffer, channel, NioChannel.READING_LENGTH) ;
+		byte messageID = readMessageID(buffer, channel) ;
 		System.out.println("Message Length : "+length+" Message ID : "+messageID);
 
 		switch (messageID) {
@@ -32,9 +32,9 @@ public class MessageHandler {
 			} else {
 				System.out.println(length);
 				byte[] deliver_array = new byte[length - 9];
-				int sender_id = buffer.getInt();
-				int lamport_timestamp = buffer.getInt();
-				buffer.get(deliver_array, 0, deliver_array.length);
+				int sender_id = read4bytes(buffer, channel, NioChannel.READING_SENDERID) ;
+				int lamport_timestamp = read4bytes(buffer,channel,NioChannel.READING_CLOCK);
+				deliver_array = readPayload(buffer, channel, deliver_array.length);
 
 				// Penser à enlever le message de la queue si le checksum n'est
 				// pas bon
@@ -67,10 +67,11 @@ public class MessageHandler {
 			break;
 
 		case 1: // Réception Ack
-			int id_sender = buffer.getInt();
-			int lamport_timestamp = buffer.getInt();
+			int id_sender = read4bytes(buffer, channel, NioChannel.READING_SENDERID) ;
+			int lamport_timestamp = read4bytes(buffer,channel,NioChannel.READING_CLOCK);
 			byte[] ack_payload_array = new byte[8];
-			buffer.get(ack_payload_array, 0, ack_payload_array.length);
+			ack_payload_array = readPayload(buffer, channel, ack_payload_array.length);
+			
 			Message m = new AckMessage(lamport_timestamp, id_sender,
 					ack_payload_array);
 			
@@ -83,8 +84,8 @@ public class MessageHandler {
 
 		case 2:
 			// reception d'une demande pour rejoindre le groupe -> On broadcast
-			id_sender = buffer.getInt();
-			lamport_timestamp = buffer.getInt();
+			id_sender = read4bytes(buffer, channel, NioChannel.READING_SENDERID) ;
+			lamport_timestamp = read4bytes(buffer,channel,NioChannel.READING_CLOCK);
 			m = new JoinGroupMessage(lamport_timestamp, id_sender);
 			System.out.println("Receiving "+m.getClass().getName());
 			
@@ -132,8 +133,8 @@ public class MessageHandler {
 		case 3:
 			// Réception d'un BrodcastJoin : Au moment du deliver on bloque le
 			// Peer.
-			id_sender = buffer.getInt();
-			lamport_timestamp = buffer.getInt();
+			id_sender = read4bytes(buffer, channel, NioChannel.READING_SENDERID) ;
+			lamport_timestamp = read4bytes(buffer,channel,NioChannel.READING_CLOCK);
 			m = new BroadcastJoinMessage(lamport_timestamp, id_sender);
 			System.out.println("Receiving "+m.getClass().getName());
 			engine.addToMap2(m);
@@ -165,10 +166,10 @@ public class MessageHandler {
 					
 		case 4 :
 				 //Reception d'un Hello	
-				 id_sender = buffer.getInt();
-			 	 lamport_timestamp = buffer.getInt();
+				 id_sender = read4bytes(buffer, channel, NioChannel.READING_SENDERID) ;
+				 lamport_timestamp = read4bytes(buffer,channel,NioChannel.READING_CLOCK);
 			 	 byte[] payload = new byte[length-9];
-			 	 buffer.get(payload, 0, payload.length);
+			 	 payload = readPayload(buffer,channel,payload.length);
 			 	 			 	
 			 	 m = new HelloMessage(lamport_timestamp,id_sender,payload);
 			 	 if(payload.length == 6){
@@ -185,10 +186,10 @@ public class MessageHandler {
 			  
 		 case 5 :
 				 //Reception d'une Liste de peers
-				 id_sender = buffer.getInt();
-			 	 lamport_timestamp = buffer.getInt();
+			 	 id_sender = read4bytes(buffer, channel, NioChannel.READING_SENDERID) ;
+			 	 lamport_timestamp = read4bytes(buffer,channel,NioChannel.READING_CLOCK);
 			 	 byte[] members_list = new byte[length-9];
-			 	 buffer.get(members_list, 0, members_list.length);
+			 	 members_list = readPayload(buffer,channel,members_list.length);
 			 	 
 			 	 m = new MemberListMessage(lamport_timestamp,id_sender,members_list);
 			 	/*LamportClockUpdate*/
@@ -269,6 +270,38 @@ public class MessageHandler {
 
 	}
 	
+	/*Pour les méthodes ReadLength, ReadSender et ReadClock*/
+	public int read4bytes(ByteBuffer buffer,NioChannel channel,int status) throws IncompleteMessageException{
+		if(buffer.remaining() > 3){
+			return buffer.getInt();
+		}
+		channel.setStatus(status, 4-buffer.remaining());
+		for(int i = 0 ; i < buffer.remaining() ; i++){
+			channel.getReceiveBuffer().put(buffer.get());
+		}
+		throw new IncompleteMessageException();
+	}
+	
+	public byte readMessageID(ByteBuffer buffer,NioChannel channel) throws IncompleteMessageException{
+		if(buffer.remaining()>0){
+			return buffer.get();
+		}
+		channel.setStatus(NioChannel.READING_MESSAGEID,1);
+		throw new IncompleteMessageException();
+	}
+	
+	public byte[] readPayload(ByteBuffer buffer,NioChannel channel,int payload_length) throws IncompleteMessageException{
+		if(buffer.remaining()>=payload_length){
+			byte[] payload = new byte[payload_length];
+			buffer.get(payload, 0, payload_length);
+			return payload ;
+		}
+		channel.setStatus(NioChannel.READING_PAYLOAD, payload_length-buffer.remaining());
+		for(int i = 0 ; i<buffer.remaining() ; i++){
+			channel.getReceiveBuffer().put(buffer.get());
+		}
+		throw new IncompleteMessageException();
+	}
 	
 	public static boolean checkMessage(byte [] payload,long checksum){
 		System.out.println("Checking checksum");
