@@ -5,6 +5,7 @@ import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.util.Date;
 import java.util.Random;
@@ -41,13 +42,15 @@ public class Main {
 				for (int i = 2; i < args.length; i++) {
 					try {
 						int porte = Integer.parseInt(args[i]);
-						NioChannel channel = new NioChannel(engine,InetAddress.getByName("localhost"), porte, port);						
+						NioChannel channel = new NioChannel(engine,InetAddress.getByName("localhost"), porte, port);
 					} catch (NumberFormatException e) {
 						System.out
 								.println("Warning : Args[i] must be an Integer (0-65535)");
 						continue;
 					}
 				}
+			} else {
+				((NioEngine)engine).setId(1);
 			}
 			Thread thread_engine = new Thread(new Runnable() {
 				public void run() {
@@ -78,7 +81,7 @@ public class Main {
 			}
 
 			while (continuer) {
-				if (((NioEngine) engine).getChannelList().size() > 1) {
+				if (((NioEngine) engine).getChannelList().size() > 1 && ((NioEngine)engine).getId() != 0) {
 					for (int k = 0; k < 3; k++) {
 						Random random = new Random(System.currentTimeMillis());
 						int length = random.nextInt(Byte.MAX_VALUE);
@@ -93,6 +96,12 @@ public class Main {
 						 int id_sender = ((NioEngine)engine).getId();
 						 Message m = new DataMessage(lamport_timestamp,id_sender,bytes);
 						 ((NioEngine)engine).addToMap2(m);
+//						 ByteBuffer ack_payload = ByteBuffer.allocate(8);
+//							ack_payload.putInt(id_sender);
+//							ack_payload.putInt(lamport_timestamp);
+//							ack_payload.flip();
+//						 Message m2 = new AckMessage(lamport_timestamp, id_sender, ack_payload.array());
+//						 ((NioEngine)engine).addToMap2(m2);
 						 byte[] message_array = m.sendMessage() ;
 
 						for (Channel channel : ((NioEngine) engine)

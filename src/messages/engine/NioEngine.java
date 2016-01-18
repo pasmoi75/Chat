@@ -84,7 +84,7 @@ public class NioEngine extends Engine {
 					
 					if(numb_ack != null && (numb_ack.intValue() == channel_list.size())){
 						System.out.println(mess.getClass().getName()+" Delivered : ID = "+mess.id_sender+" and Timestamp = "+mess.timestamp);
-						deliver.deliver(getChannel_list().get(0),mess.sendMessage());
+						deliver.deliver(getChannelList().get(0),mess.sendMessage());
 						mess = priority.poll();
 					} else {
 						ok = false ;
@@ -274,11 +274,6 @@ public class NioEngine extends Engine {
 			priority.add(m);
 
 		}
-	}
-
-	public synchronized List<Channel> getChannel_list() {
-		return channel_list;
-
 	}
 
 	public synchronized Map<Integer, byte[]> getPeersMap() {
