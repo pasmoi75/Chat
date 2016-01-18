@@ -88,10 +88,11 @@ public class Main {
 						for (int i = 0; i < length; i++) {
 							bytes[i] = (byte) i;
 						}
-						
+						((NioEngine)engine).setTimestamp(((NioEngine)engine).getTimestamp()+1);
 						 int lamport_timestamp = ((NioEngine)engine).getTimestamp();
 						 int id_sender = ((NioEngine)engine).getId();
 						 Message m = new DataMessage(lamport_timestamp,id_sender,bytes);
+						 ((NioEngine)engine).addToMap2(m);
 						 byte[] message_array = m.sendMessage() ;
 
 						for (Channel channel : ((NioEngine) engine)

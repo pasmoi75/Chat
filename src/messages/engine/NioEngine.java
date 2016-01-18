@@ -52,11 +52,11 @@ public class NioEngine extends Engine {
 		this.id = id;
 	}
 
-	public int getTimestamp() {
+	public synchronized int getTimestamp() {
 		return lamport_timestamp;
 	}
 
-	public void setTimestamp(int lamport_timestamp) {
+	public synchronized void setTimestamp(int lamport_timestamp) {
 		this.lamport_timestamp = lamport_timestamp;
 	}
 
@@ -67,18 +67,22 @@ public class NioEngine extends Engine {
 			boolean ok = true;
 
 			while (ok) {
-				if(collection_ack.size() > 0 )
-				System.out.println("TAILLE : " + collection_ack.size());
-				Message mess = priority.peek();		
+				Message mess = priority.peek();
+				/*if(collection_ack.size() > 0)
+					System.out.println(collection_ack);*/
 				
-				if (mess != null) {
+				if (mess != null) {				
 					ByteBuffer payload_ack = ByteBuffer.allocate(8);
 					payload_ack.putInt(mess.id_sender);
 					payload_ack.putInt(mess.timestamp);
-					AckMessage related_ack = new AckMessage(mess.id_sender, mess.timestamp, payload_ack.array());
+					payload_ack.flip();
+					AckMessage related_ack = new AckMessage(mess.timestamp,mess.id_sender, payload_ack.array());
 
-					Integer numb_ack = collection_ack.get(related_ack);					
-					if(numb_ack != null && numb_ack.intValue() == channel_list.size()){
+					Integer numb_ack = collection_ack.get(related_ack);
+					if(numb_ack != null)
+						System.out.println("Nombre de Ack reçus : "+numb_ack.intValue()+" Taille de la channel list :"+ channel_list.size());
+					
+					if(numb_ack != null && (numb_ack.intValue() == channel_list.size())){
 						System.out.println("BON SIGNE");
 						deliver.deliver(getChannel_list().get(0),mess.sendMessage());
 						mess = priority.poll();
@@ -93,7 +97,7 @@ public class NioEngine extends Engine {
 			try {
 				int keys_number = selector.select(500);
 				if (keys_number > 0) {
-				 System.out.println("Number of keys :" + keys_number);
+				 System.out.println("Timestamp : "+getTimestamp()+" Number of keys :" + keys_number);
 					Set<SelectionKey> selectedKeys = selector.selectedKeys();
 					Iterator<SelectionKey> iter = selectedKeys.iterator();
 

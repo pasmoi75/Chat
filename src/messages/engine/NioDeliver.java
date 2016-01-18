@@ -20,6 +20,7 @@ public class NioDeliver implements DeliverCallback {
 
 		ByteBuffer buffer = ByteBuffer.allocate(bytes.length);
 		buffer.put(bytes);
+		buffer.flip();
 		int length = buffer.getInt();
 		byte messageID = buffer.get();
 

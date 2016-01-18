@@ -28,5 +28,11 @@ public class AckMessage extends Message{
 			return a.message_emitter == message_emitter && a.message_timestamp == message_timestamp ;
 		}		
 	}
+	
+	@Override
+	public int hashCode(){
+		return ((Integer)message_emitter).hashCode() + ((Integer)message_timestamp).hashCode();
+		
+	}
 
 }

@@ -9,7 +9,6 @@ import messages.engine.NioChannel.BufferState;
 
 public class MessageHandler {
 
-	
 	private NioEngine engine ;
 	
 	public MessageHandler(NioEngine engine){
@@ -41,6 +40,10 @@ public class MessageHandler {
 				// pas bon
 				Message m = new DataMessage(lamport_timestamp, sender_id,deliver_array);
 				System.out.println("Receiving "+m.getClass().getName());
+				
+				/*LamportClockUpdate*/
+				engine.setTimestamp(Math.max(m.timestamp,engine.getTimestamp()));
+				
 				((NioEngine) channel.getEngine()).addToMap2(m);
 
 				/* Building ACK */
@@ -48,18 +51,16 @@ public class MessageHandler {
 				ack_payload.putInt(sender_id);
 				ack_payload.putInt(lamport_timestamp);
 				ack_payload.flip();
-
-				Message m2 = new AckMessage(lamport_timestamp, sender_id,
+				
+				engine.setTimestamp(engine.getTimestamp()+1);
+				Message m2 = new AckMessage(engine.getTimestamp(), engine.getId(),
 							ack_payload.array());
 				for (Channel other_channel : ((NioEngine) channel
 							.getEngine()).getChannelList()) {
 						byte[] message_array = m2.sendMessage();
 						other_channel.send(message_array, 0,
 								message_array.length);
-					}
-
-
-				
+					}			
 			}
 			break;
 
@@ -70,6 +71,10 @@ public class MessageHandler {
 			buffer.get(ack_payload_array, 0, ack_payload_array.length);
 			Message m = new AckMessage(lamport_timestamp, id_sender,
 					ack_payload_array);
+			
+			/*LamportClockUpdate*/
+			engine.setTimestamp(Math.max(m.timestamp,engine.getTimestamp()));
+			
 			System.out.println("Receiving "+m.getClass().getName());
 			((NioEngine) channel.getEngine()).addToMap2(m);
 			break;
@@ -80,9 +85,14 @@ public class MessageHandler {
 			lamport_timestamp = buffer.getInt();
 			m = new JoinGroupMessage(lamport_timestamp, id_sender);
 			System.out.println("Receiving "+m.getClass().getName());
+			
+			/*LamportClockUpdate*/
+			engine.setTimestamp(Math.max(m.timestamp,engine.getTimestamp()));
+			engine.setTimestamp(engine.getTimestamp()+1);
 
 			/* Broadcast à tout les autres Peers */
-			Message m2 = new BroadcastJoinMessage(lamport_timestamp, id_sender);
+			Message m2 = new BroadcastJoinMessage(engine.getTimestamp(), engine.getId());
+			engine.addToMap2(m2);
 			for (Channel other_channel : ((NioEngine) channel.getEngine())
 					.getChannelList()) {
 				if (!other_channel.equals(channel)) {
@@ -90,6 +100,19 @@ public class MessageHandler {
 					other_channel.send(message_array, 0, message_array.length);
 				}
 			}
+			
+			/*On ACK le message soi même, étant donné que pour un BroadcastJoin seul n-1 personnes vont recevoir le broadcast */
+			/* Building ACK */
+			ByteBuffer ack_payload = ByteBuffer.allocate(8);
+			ack_payload.putInt(engine.getId());
+			ack_payload.putInt(engine.getTimestamp());
+			ack_payload.flip();
+			
+			engine.setTimestamp(engine.getTimestamp()+1);
+			m2 = new AckMessage(engine.getTimestamp(), engine.getId(),
+						ack_payload.array());
+			engine.addToMap2(m2);
+			
 			break;
 
 		case 3:
@@ -99,14 +122,19 @@ public class MessageHandler {
 			lamport_timestamp = buffer.getInt();
 			m = new BroadcastJoinMessage(lamport_timestamp, id_sender);
 			System.out.println("Receiving "+m.getClass().getName());
+			engine.addToMap2(m);
+			
+			/*LamportClockUpdate*/
+			engine.setTimestamp(Math.max(m.timestamp,engine.getTimestamp()));
+			engine.setTimestamp(engine.getTimestamp()+1);
 
 			/* Building ACK */
-			ByteBuffer ack_payload = ByteBuffer.allocate(8);
+			ack_payload = ByteBuffer.allocate(8);
 			ack_payload.putInt(id_sender);
 			ack_payload.putInt(lamport_timestamp);
 			ack_payload.flip();
 
-			m2 = new AckMessage(lamport_timestamp, id_sender,
+			m2 = new AckMessage(engine.getTimestamp(), engine.getId(),
 					ack_payload.array());
 			for (Channel other_channel : ((NioEngine) channel.getEngine())
 					.getChannelList()) {
@@ -125,6 +153,10 @@ public class MessageHandler {
 			 	 buffer.get(payload, 0, payload.length);
 			 	 			 	
 			 	 m = new HelloMessage(lamport_timestamp,id_sender,payload);
+			 	 
+			 	/*LamportClockUpdate*/
+				engine.setTimestamp(Math.max(m.timestamp,engine.getTimestamp()));
+			 	 
 			 	 System.out.println("Receiving "+m.getClass().getName());
 			 	 ((NioChannel)channel).setBlocked(false);
 				 break ;
@@ -137,6 +169,9 @@ public class MessageHandler {
 			 	 buffer.get(members_list, 0, members_list.length);
 			 	 
 			 	 m = new MemberListMessage(lamport_timestamp,id_sender,members_list);
+			 	/*LamportClockUpdate*/
+					engine.setTimestamp(Math.max(m.timestamp,engine.getTimestamp()));
+			 	 
 			 	 System.out.println("Receiving "+m.getClass().getName());
 			 	 
 			 	 for(int i = 0 ; i<= members_list.length - 10 ; i=i+10){
