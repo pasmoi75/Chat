@@ -5,14 +5,14 @@ import java.nio.ByteBuffer;
 
 public class NioDeliver implements DeliverCallback {
 
-	private Channel channel;
+	private Engine engine;
 
-	public NioDeliver(Channel channel) {
-		this.channel = channel;
+	public NioDeliver(Engine engine) {
+		this.engine = engine ;
 	}
 
-	public Channel getChannel() {
-		return channel;
+	public Engine getEngine(){
+		return engine ;
 	}
 
 	@Override

@@ -52,6 +52,8 @@ public abstract class Message implements Comparable<Message> {
 	}
 	
 	public byte[] sendMessage(){
+		System.out.println("Sending "+this.getClass().getName());
+		
 		int payload_length = (message == null)?0:message.length ;
 		ByteBuffer buffer = ByteBuffer.allocate(9+4+payload_length);
 		buffer.putInt(9+payload_length);

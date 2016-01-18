@@ -28,12 +28,11 @@ public class NioEngine extends Engine {
 	private Selector selector;
 	private PriorityQueue<Message> priority;
 	private Map<AckMessage, Integer> collection_ack;
-	private MessageHandler handler = new MessageHandler();
-	private Map<Integer, byte[]> peers_map;
 
-	private HashMap<Message, Long> ordered_map;
-	private NioDeliver deliver = new NioDeliver(null);
-	boolean nouveau_venu = false;
+	private MessageHandler handler = new MessageHandler(this);
+
+	private Map<Integer, byte[]> peers_map;
+	private NioDeliver deliver = new NioDeliver(this);
 
 	public NioEngine() throws IOException {
 		selector = Selector.open();
@@ -66,29 +65,48 @@ public class NioEngine extends Engine {
 			boolean ok = true;
 
 			while (ok) {
-				int size = collection_ack.size();
-				if(size!=0) {
-//				System.out.println("TAILLE : " + size);
-				System.exit(-1);
-				}
-//				if(collection_ack.size()==1)
-//					System.exit(-1);
 
-				Message mess = priority.peek();	
-				AckMessage fake_ack = null;
-				if(mess!=null){
+//				int size = collection_ack.size();
+//				if(size!=0) {
+////				System.out.println("TAILLE : " + size);
+//				System.exit(-1);
+//				}
+////				if(collection_ack.size()==1)
+////					System.exit(-1);
+//
+//				Message mess = priority.peek();	
+//				AckMessage fake_ack = null;
+//				if(mess!=null){
+//
+//					System.out.println(mess.id_sender + mess.timestamp);
+//					fake_ack = new AckMessage(mess.id_sender, mess.timestamp);
+////					System.exit(-1);
+//				}
+//			
+//				
+//				if (mess != null && size!=0&&collection_ack.get(fake_ack) == getChannel_list().size()) {
+//					System.out.println("BON SIGNE");
+//					deliver.deliver(getChannel_list().get(0),
+//							mess.sendMessage());
+//					mess = priority.poll();
 
-					System.out.println(mess.id_sender + mess.timestamp);
-					fake_ack = new AckMessage(mess.id_sender, mess.timestamp);
-//					System.exit(-1);
-				}
-			
+				if(collection_ack.size() > 0 )
+				System.out.println("TAILLE : " + collection_ack.size());
+				Message mess = priority.peek();		
 				
-				if (mess != null && size!=0&&collection_ack.get(fake_ack) == getChannel_list().size()) {
-					System.out.println("BON SIGNE");
-					deliver.deliver(getChannel_list().get(0),
-							mess.sendMessage());
-					mess = priority.poll();
+				if (mess != null) {
+					AckMessage related_ack = new AckMessage(mess.id_sender,mess.timestamp);
+					Integer numb_ack = collection_ack.get(related_ack);	
+//					if(numb_ack!=null) {
+//						System.out.println(numb_ack );
+//						System.exit(-1);
+//					}
+					if(numb_ack != null && numb_ack.intValue() == channel_list.size()){
+						System.out.println("BON SIGNE");
+						deliver.deliver(getChannel_list().get(0),mess.sendMessage());
+						mess = priority.poll();
+					}					
+
 				} else {
 					ok = false;
 				}
@@ -97,7 +115,7 @@ public class NioEngine extends Engine {
 			try {
 				int keys_number = selector.select(500);
 				if (keys_number > 0) {
-					// System.out.println("Number of keys :" + keys_number);
+				 System.out.println("Number of keys :" + keys_number);
 					Set<SelectionKey> selectedKeys = selector.selectedKeys();
 					Iterator<SelectionKey> iter = selectedKeys.iterator();
 
@@ -105,9 +123,9 @@ public class NioEngine extends Engine {
 
 						SelectionKey ky = iter.next();
 						if (ky.isValid())
-							// System.out.println("Keys Ready Ops :" +
-							// ky.readyOps() + " InterestOps :" +
-							// ky.interestOps());
+							System.out.println("Keys Ready Ops :" +
+							 ky.readyOps() + " InterestOps :" +
+							ky.interestOps());
 							if (ky.isValid() && ky.isAcceptable()) {
 								SocketChannel client;
 								try {
@@ -156,6 +174,7 @@ public class NioEngine extends Engine {
 
 							ByteBuffer buffer = ByteBuffer.allocate(1 << 19);
 							try {
+								client.configureBlocking(false);
 								int bytesread = client.read(buffer);
 								if (bytesread > 0) {
 									buffer.flip();
@@ -176,6 +195,9 @@ public class NioEngine extends Engine {
 							} catch (IOException e) {
 								e.printStackTrace();
 								connectcallback.closed(pair);
+							} catch (Exception e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
 							}
 						}
 						if (ky.isValid() && ky.isWritable()) {
@@ -186,11 +208,13 @@ public class NioEngine extends Engine {
 
 							try {
 								pair.getSendBuffer().flip();
+								client.configureBlocking(false);
 								int bytesWritten = client.write(pair
 										.getSendBuffer());
 								writeCount += bytesWritten;
 								ky.interestOps(SelectionKey.OP_READ);
-								// System.out.println("bytes Written : "+bytesWritten);
+								System.out.println("bytes Written : "+bytesWritten);
+								pair.getSendBuffer().compact();
 								if (!client.isOpen()) {
 									connectcallback.closed(pair);
 								}
@@ -251,16 +275,6 @@ public class NioEngine extends Engine {
 
 	}
 
-	public synchronized void toMap(TreeMap<Message, Long> treemap) {
-		int i = 0;
-		HashMap<Message, Long> map = new HashMap<>();
-		for (Message mess : treemap.keySet()) {
-			map.put(mess, treemap.get(mess));
-		}
-
-		map = ordered_map;
-	}
-
 	public synchronized List<Channel> getChannelList() {
 		return channel_list;
 	}
@@ -268,124 +282,15 @@ public class NioEngine extends Engine {
 	public synchronized void addToMap2(Message m) {
 
 		if (m instanceof AckMessage) {
-			Integer numb_ack = collection_ack.get(m);
+			Integer numb_ack = collection_ack.get((AckMessage) m);
 			Integer new_value_ack = numb_ack == null ? 1 : numb_ack + 1;
 			collection_ack.put((AckMessage) m, new_value_ack);
 		} else {
-			
+
 			priority.add(m);
 
 		}
 	}
-
-	class Comparateur implements Comparator {
-
-		Map<Message, Long> tuple;
-
-		public Comparateur(HashMap<Message, Long> map) {
-			this.tuple = map;
-		}
-
-		// ce comparateur ordonne les éléments dans l'ordre décroissant
-		@Override
-		public int compare(Object o1, Object o2) {
-			// TODO Auto-generated method stub
-			if (tuple.get(o1) < (tuple.get(o2))) {
-				return -1;
-			} else {
-				return 1;
-			}
-		}
-	}
-
-	class Comparateur_Message implements Comparator<Message> {
-
-		@Override
-		public int compare(Message o1, Message o2) {
-			if (o1.date < o2.date) {
-				return -1;
-			} else {
-				return 1;
-			}
-		}
-	}
-
-	/*
-	 * public synchronized void addToMap(Message mess, Long ack) {
-	 * 
-	 * if (ack == null) {
-	 * 
-	 * if (ordered_map.containsValue(mess.date)) {
-	 * 
-	 * TreeMap<Message, Long> new_map = new TreeMap<>(); for (Message message :
-	 * ordered_map.keySet()) {
-	 * 
-	 * if (message.date == mess.date) { mess.nb_ack = message.nb_ack;
-	 * new_map.put(mess, mess.date); } else new_map.put(message, message.date);
-	 * 
-	 * }
-	 * 
-	 * toMap(new_map);
-	 * 
-	 * }
-	 * 
-	 * else ordered_map.put(mess, mess.date);
-	 * 
-	 * } else {
-	 * 
-	 * if (ordered_map.containsValue(ack)) {
-	 * 
-	 * TreeMap<Message, Long> new_map = new TreeMap<>(); for (Message message :
-	 * ordered_map.keySet()) {
-	 * 
-	 * if (message.date == ack) { message.nb_ack += 1; }
-	 * 
-	 * new_map.put(message, message.date);
-	 * 
-	 * }
-	 * 
-	 * toMap(new_map);
-	 * 
-	 * }
-	 * 
-	 * else { Message nouveau = new Message(ack, null); nouveau.nb_ack = 1;
-	 * ordered_map.put(nouveau, ack); } }
-	 * 
-	 * Comparateur comp = new Comparateur(ordered_map); TreeMap<Message, Long>
-	 * map_triee = new TreeMap<Message, Long>(comp);
-	 * map_triee.putAll(ordered_map); toMap(map_triee); }
-	 * 
-	 * public synchronized void addToQueue(Message mess, Long ack) {
-	 * 
-	 * if (ack == null) {
-	 * 
-	 * if (contains(priority, mess.date)!=null) {
-	 * 
-	 * Message messi = contains(priority, mess.date); priority.remove(messi);
-	 * messi.nb_ack+=1; priority.add(messi); }
-	 * 
-	 * else priority.add(mess);
-	 * 
-	 * } else {
-	 * 
-	 * if (contains(priority, mess.date)!=null) {
-	 * 
-	 * Message messi = contains(priority, mess.date); priority.remove(messi);
-	 * messi.nb_ack+=1; priority.add(messi); }
-	 * 
-	 * else { Message nouveau = new Message(ack, null); priority.add(nouveau); }
-	 * }
-	 * 
-	 * }
-	 * 
-	 * public Message contains(PriorityQueue<Message> messages, Long date) {
-	 * 
-	 * for (Message mess : messages) { if (mess.date == date) return mess; }
-	 * 
-	 * return null;
-	 * 
-	 * }
-	 */
 
 	public synchronized List<Channel> getChannel_list() {
 		return channel_list;
@@ -417,14 +322,6 @@ public class NioEngine extends Engine {
 
 	public synchronized void setChannel_list(List<Channel> channel_list) {
 		this.channel_list = channel_list;
-	}
-
-	public synchronized HashMap<Message, Long> getOrdered_map() {
-		return ordered_map;
-	}
-
-	public synchronized void setOrdered_map(HashMap<Message, Long> ordered_map) {
-		this.ordered_map = ordered_map;
 	}
 
 	public int getListeningPort() {
