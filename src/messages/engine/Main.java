@@ -104,6 +104,12 @@ public class Main {
 						 int id_sender = ((NioEngine)engine).getId();
 						 Message m = new DataMessage(lamport_timestamp,id_sender,bytes);
 						 ((NioEngine)engine).addToMap2(m);
+//						 ByteBuffer ack_payload = ByteBuffer.allocate(8);
+//							ack_payload.putInt(id_sender);
+//							ack_payload.putInt(lamport_timestamp);
+//							ack_payload.flip();
+//						 Message m2 = new AckMessage(lamport_timestamp, id_sender, ack_payload.array());
+//						 ((NioEngine)engine).addToMap2(m2);
 						 byte[] message_array = m.sendMessage() ;
 
 						for (Channel channel : ((NioEngine) engine)

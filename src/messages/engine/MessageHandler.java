@@ -55,8 +55,8 @@ public class MessageHandler {
 				engine.setTimestamp(engine.getTimestamp()+1);
 				Message m2 = new AckMessage(engine.getTimestamp(), engine.getId(),
 							ack_payload.array());
-				engine.addToMap2(m2);
 
+				engine.addToMap2(m2);
 				for (Channel other_channel : ((NioEngine) channel
 							.getEngine()).getChannelList()) {
 						byte[] message_array = m2.sendMessage();
@@ -150,6 +150,10 @@ public class MessageHandler {
 
 			Message m2 = new AckMessage(engine.getTimestamp(), engine.getId(),
 					ack_payload.array());
+			
+			engine.addToMap2(m2);
+			
+			
 			for (Channel other_channel : ((NioEngine) channel.getEngine())
 					.getChannelList()) {
 				byte[] message_array = m2.sendMessage();
