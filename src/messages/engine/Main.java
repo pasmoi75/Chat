@@ -84,7 +84,7 @@ public class Main {
 					for (int k = 0; k < 3; k++) {
 						Random random = new Random(System.currentTimeMillis());
 						int length = random.nextInt(Byte.MAX_VALUE);
-						System.out.println("Length :" + length);
+						System.out.println("Nombre choisi :" + length);
 						
 						byte bytes[] = new byte[length] ;
 						for (int i = 0; i < length; i++) {

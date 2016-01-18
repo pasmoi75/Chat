@@ -15,8 +15,8 @@ public abstract class Message implements Comparable<Message> {
 	public long date ;
 	
 	/*Dans le cas d'un ACK*/
-	public int message_emitter ;
-	public int message_timestamp ;
+	public int message_emitter=0 ;
+	public int message_timestamp=0 ;
 	
 	
 

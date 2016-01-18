@@ -135,21 +135,12 @@ public class NioChannel extends Channel {
 	// =======
 	public synchronized void send(byte[] bytes, int offset, int length) {
 
-//		boolean ok = false;
-//
-//		while(!ok) {
-		System.out.println("Sending Message. Length = " + length);
-		System.out.println("Buffer position : " + send_buffer.position()
-				+ " \nBuffer capacity :" + send_buffer.capacity()
-				+ " \nBuffer Limit :" + send_buffer.limit());
-
-		if (send_buffer.limit() - send_buffer.position() > length) {
-			send_buffer.put(bytes, offset, length);
-
+		System.out.println("Sending Message. Length = "+length);
+		System.out.println("Buffer position : "+send_buffer.position()+" \nBuffer capacity :"+send_buffer.capacity()+" \nBuffer Limit :"+send_buffer.limit());
+		if (send_buffer.capacity() - send_buffer.position() > length) {
+			send_buffer.put(bytes);
 			selectionkey.interestOps(SelectionKey.OP_READ
 					| SelectionKey.OP_WRITE);
-//			ok=true; 	
-
 		} else {
 //			send_buffer.compact();
 			//System.out.println("Send Buffer is Full");
