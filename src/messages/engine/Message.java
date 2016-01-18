@@ -38,7 +38,7 @@ public abstract class Message implements Comparable<Message> {
 
 	@Override
 	public int compareTo(Message o) {
-		return (-((Integer)timestamp).compareTo(o.timestamp));
+		return (((Integer)timestamp).compareTo(o.timestamp));
 	}
 	
 	@Override
@@ -52,7 +52,7 @@ public abstract class Message implements Comparable<Message> {
 	}
 	
 	public byte[] sendMessage(){
-		System.out.println("Sending "+this.getClass().getName());
+		System.out.println("Sending "+this.getClass().getName() +"\nMessage Timestamp : "+this.timestamp+" ID Sender : "+this.id_sender);
 		
 		int payload_length = (message == null)?0:message.length ;
 		ByteBuffer buffer = ByteBuffer.allocate(9+4+payload_length);

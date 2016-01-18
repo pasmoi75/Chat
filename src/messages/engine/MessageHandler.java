@@ -75,7 +75,7 @@ public class MessageHandler {
 			/*LamportClockUpdate*/
 			engine.setTimestamp(Math.max(m.timestamp,engine.getTimestamp()));
 			
-			System.out.println("Receiving "+m.getClass().getName());
+			System.out.println("Receiving "+m.getClass().getName()+" for Message : "+m.message_timestamp+" from "+m.message_emitter);
 			((NioEngine) channel.getEngine()).addToMap2(m);
 			break;
 
@@ -91,6 +91,7 @@ public class MessageHandler {
 			engine.setTimestamp(engine.getTimestamp()+1);
 
 			/* Broadcast à tout les autres Peers */
+			if(engine.getChannelList().size() > 1){
 			Message m2 = new BroadcastJoinMessage(engine.getTimestamp(), engine.getId());
 			engine.addToMap2(m2);
 			for (Channel other_channel : ((NioEngine) channel.getEngine())
@@ -100,6 +101,7 @@ public class MessageHandler {
 					other_channel.send(message_array, 0, message_array.length);
 				}
 			}
+			
 			
 			/*On ACK le message soi même, étant donné que pour un BroadcastJoin seul n-1 personnes vont recevoir le broadcast */
 			/* Building ACK */
@@ -112,6 +114,7 @@ public class MessageHandler {
 			m2 = new AckMessage(engine.getTimestamp(), engine.getId(),
 						ack_payload.array());
 			engine.addToMap2(m2);
+			}
 			
 			break;
 
@@ -129,12 +132,12 @@ public class MessageHandler {
 			engine.setTimestamp(engine.getTimestamp()+1);
 
 			/* Building ACK */
-			ack_payload = ByteBuffer.allocate(8);
+			ByteBuffer ack_payload = ByteBuffer.allocate(8);
 			ack_payload.putInt(id_sender);
 			ack_payload.putInt(lamport_timestamp);
 			ack_payload.flip();
 
-			m2 = new AckMessage(engine.getTimestamp(), engine.getId(),
+			Message m2 = new AckMessage(engine.getTimestamp(), engine.getId(),
 					ack_payload.array());
 			for (Channel other_channel : ((NioEngine) channel.getEngine())
 					.getChannelList()) {
