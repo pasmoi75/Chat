@@ -5,6 +5,7 @@ import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.util.Date;
 import java.util.Random;
@@ -49,7 +50,15 @@ public class Main {
 					}
 				}
 			} else {
+				ByteBuffer wrapped = ByteBuffer.allocate(6);
+				byte[] port_byte4 = new byte[4];
+				Util.writeInt32(port_byte4, 0, port);
+				byte[] port_byte2 = new byte[2];
+				System.arraycopy(port_byte4, 2, port_byte2, 0, 2);
+				wrapped.put(InetAddress.getByName("localhost").getAddress());
+				wrapped.put(port_byte2);
 				((NioEngine)engine).setId(1);
+				((NioEngine)engine).getPeersMap().put(1,wrapped.array());
 			}
 			Thread thread_engine = new Thread(new Runnable() {
 				public void run() {

@@ -214,6 +214,7 @@ public class MessageHandler {
 			 		 System.arraycopy(peer_address,4,port_array,2,2);
 			 		 int port = Util.readInt32(port_array, 0);
 			 		 
+			 		 if(peer_id != id_sender){
 			 		 try {
 						NioChannel new_channel = new NioChannel(engine,InetAddress.getByAddress(ip_address),port,0);
 						new_channel.setNouveauvenu(false);
@@ -227,6 +228,7 @@ public class MessageHandler {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}			 		 
+			 	 }
 			 	 }
 			 	 
 			 	 engine.setId(max_id+1);
