@@ -5,7 +5,7 @@ public class HelloMessage extends Message {
 	
 	public HelloMessage(int lamport_stamp, int sender_id,byte[] payload) {
 		super(lamport_stamp, sender_id, payload);
-		messageID = 3 ;
+		messageID = 4 ;
 	}
 
 }

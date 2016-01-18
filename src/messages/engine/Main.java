@@ -24,8 +24,6 @@ public class Main {
 			String name = args.length > 0 ? args[0] : "";
 
 			final Engine engine = new NioEngine();
-			((NioEngine)engine).setTimestamp(12);
-			((NioEngine)engine).setId(12);
 
 			NioServer serveur1;
 			int port = 0;
@@ -80,7 +78,7 @@ public class Main {
 			}
 
 			while (continuer) {
-				if (((NioEngine) engine).getChannelList().size() > 0) {
+				if (((NioEngine) engine).getChannelList().size() > 1) {
 					for (int k = 0; k < 3; k++) {
 						Random random = new Random(System.currentTimeMillis());
 						int length = random.nextInt(Byte.MAX_VALUE);
@@ -90,10 +88,11 @@ public class Main {
 						for (int i = 0; i < length; i++) {
 							bytes[i] = (byte) i;
 						}
-						
+						((NioEngine)engine).setTimestamp(((NioEngine)engine).getTimestamp()+1);
 						 int lamport_timestamp = ((NioEngine)engine).getTimestamp();
 						 int id_sender = ((NioEngine)engine).getId();
 						 Message m = new DataMessage(lamport_timestamp,id_sender,bytes);
+						 ((NioEngine)engine).addToMap2(m);
 						 byte[] message_array = m.sendMessage() ;
 
 						for (Channel channel : ((NioEngine) engine)

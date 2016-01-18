@@ -27,7 +27,7 @@ public class NioChannel extends Channel {
 	private DeliverCallback delivercallback;
 	private ConnectCallback connectcallback;
 	private boolean blocked;
-	private int unreadposition;
+	private int unreadposition ;
 	private Integer local_port;
 
 	public class BufferState {
@@ -63,9 +63,9 @@ public class NioChannel extends Channel {
 		this.local_port = local_port;
 
 	}
-
-	public Engine getEngine() {
-		return engine;
+	
+	public Engine getEngine(){
+		return engine ;
 	}
 
 	public ConnectCallback getConnectcallback() {
@@ -111,42 +111,17 @@ public class NioChannel extends Channel {
 	}
 
 	@Override
-	// <<<<<<< HEAD
-	// public void send(byte[] bytes, int offset, int length) {
-	// //
-	// System.out.println("Buffer position : "+send_buffer.position()+" \nBuffer capacity :"+send_buffer.capacity()+" \nBuffer Limit :"+send_buffer.limit());
-	// if (send_buffer.capacity() - send_buffer.position() > length + 21) {
-	//
-	// try {
-	// send_buffer.putInt(length+14);
-	// // send_buffer.put((byte)0);
-	// send_buffer.putInt(((NioEngine)engine).getId());
-	// send_buffer.putInt(((NioEngine)engine).getTimestamp());
-	// if (bytes != null)
-	// send_buffer.put(bytes, offset, length);
-	// Checksum checksum = new CRC32();
-	// checksum.update(bytes, offset, length);
-	// long checksum_value = checksum.getValue();
-	// send_buffer.putLong(checksum_value);
-	//
-	// } catch (BufferOverflowException e) {
-	// System.out.println("Send Buffer is Full");
-	// }
-	// =======
 	public synchronized void send(byte[] bytes, int offset, int length) {
-
 		System.out.println("Sending Message. Length = "+length);
-		System.out.println("Buffer position : "+send_buffer.position()+" \nBuffer capacity :"+send_buffer.capacity()+" \nBuffer Limit :"+send_buffer.limit());
+		//System.out.println("Buffer position : "+send_buffer.position()+" \nBuffer capacity :"+send_buffer.capacity()+" \nBuffer Limit :"+send_buffer.limit());
 		if (send_buffer.capacity() - send_buffer.position() > length) {
 			send_buffer.put(bytes);
 			selectionkey.interestOps(SelectionKey.OP_READ
 					| SelectionKey.OP_WRITE);
 		} else {
-//			send_buffer.compact();
-			//System.out.println("Send Buffer is Full");
+			System.out.println("Send Buffer is Full");
 		}
-//		}
-	}
+	}	
 
 	public void checkbuffer(ByteBuffer buffer) {
 		int taille = buffer.capacity();
@@ -154,12 +129,12 @@ public class NioChannel extends Channel {
 		if ((((taille - remain) / taille)) < 0.25)
 			buffer.compact();
 	}
-
-	public boolean checkMessage(byte[] payload, long checksum) {
+	
+	public boolean checkMessage(byte [] payload,long checksum){
 		Checksum sum_control = new CRC32();
 		sum_control.update(payload, 0, payload.length);
 		long checksum_value = sum_control.getValue();
-		return checksum_value == checksum;
+		return checksum_value == checksum ;
 	}
 
 	@Override

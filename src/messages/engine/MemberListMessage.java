@@ -5,6 +5,7 @@ public class MemberListMessage extends Message {
 
 	public MemberListMessage(int lamport_stamp, int sender_id, byte[] payload) {
 		super(lamport_stamp, sender_id, payload);
+		messageID = 5 ;
 	}
 
 }	

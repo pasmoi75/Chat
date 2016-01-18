@@ -9,6 +9,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -18,6 +19,8 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class NioEngine extends Engine {
 
@@ -28,11 +31,10 @@ public class NioEngine extends Engine {
 	private Selector selector;
 	private PriorityQueue<Message> priority;
 	private Map<AckMessage, Integer> collection_ack;
-
 	private MessageHandler handler = new MessageHandler(this);
-
 	private Map<Integer, byte[]> peers_map;
-	private NioDeliver deliver = new NioDeliver(this);
+	private NioDeliver deliver = new NioDeliver(this) ;
+
 
 	public NioEngine() throws IOException {
 		selector = Selector.open();
@@ -50,11 +52,11 @@ public class NioEngine extends Engine {
 		this.id = id;
 	}
 
-	public int getTimestamp() {
+	public synchronized int getTimestamp() {
 		return lamport_timestamp;
 	}
 
-	public void setTimestamp(int lamport_timestamp) {
+	public synchronized void setTimestamp(int lamport_timestamp) {
 		this.lamport_timestamp = lamport_timestamp;
 	}
 
@@ -65,47 +67,28 @@ public class NioEngine extends Engine {
 			boolean ok = true;
 
 			while (ok) {
-
-//				int size = collection_ack.size();
-//				if(size!=0) {
-////				System.out.println("TAILLE : " + size);
-//				System.exit(-1);
-//				}
-////				if(collection_ack.size()==1)
-////					System.exit(-1);
-//
-//				Message mess = priority.peek();	
-//				AckMessage fake_ack = null;
-//				if(mess!=null){
-//
-//					System.out.println(mess.id_sender + mess.timestamp);
-//					fake_ack = new AckMessage(mess.id_sender, mess.timestamp);
-////					System.exit(-1);
-//				}
-//			
-//				
-//				if (mess != null && size!=0&&collection_ack.get(fake_ack) == getChannel_list().size()) {
-//					System.out.println("BON SIGNE");
-//					deliver.deliver(getChannel_list().get(0),
-//							mess.sendMessage());
-//					mess = priority.poll();
-
-				if(collection_ack.size() > 0 )
-				System.out.println("TAILLE : " + collection_ack.size());
-				Message mess = priority.peek();		
+				Message mess = priority.peek();
+				/*if(collection_ack.size() > 0)
+					System.out.println(collection_ack);*/
 				
-				if (mess != null) {
+				if (mess != null) {				
 					ByteBuffer payload_ack = ByteBuffer.allocate(8);
 					payload_ack.putInt(mess.id_sender);
 					payload_ack.putInt(mess.timestamp);
-					AckMessage related_ack = new AckMessage(mess.id_sender, mess.timestamp, payload_ack.array());
+					payload_ack.flip();
+					AckMessage related_ack = new AckMessage(mess.timestamp,mess.id_sender, payload_ack.array());
 
-					Integer numb_ack = collection_ack.get(related_ack);					
-					if(numb_ack != null && numb_ack.intValue() == channel_list.size()){
-						System.out.println("BON SIGNE");
+					Integer numb_ack = collection_ack.get(related_ack);
+					//if(numb_ack != null)
+						//System.out.println("Nombre de Ack reçus : "+numb_ack.intValue()+" Taille de la channel list :"+ channel_list.size());
+					
+					if(numb_ack != null && (numb_ack.intValue() == channel_list.size())){
+						System.out.println(mess.getClass().getName()+" Delivered : ID = "+mess.id_sender+" and Timestamp = "+mess.timestamp);
 						deliver.deliver(getChannel_list().get(0),mess.sendMessage());
 						mess = priority.poll();
-					}					
+					} else {
+						ok = false ;
+					}
 				} else {
 					ok = false;
 				}
@@ -114,7 +97,7 @@ public class NioEngine extends Engine {
 			try {
 				int keys_number = selector.select(500);
 				if (keys_number > 0) {
-				 System.out.println("Number of keys :" + keys_number);
+				 System.out.println("Timestamp : "+getTimestamp()+" Number of keys :" + keys_number);
 					Set<SelectionKey> selectedKeys = selector.selectedKeys();
 					Iterator<SelectionKey> iter = selectedKeys.iterator();
 
@@ -173,7 +156,6 @@ public class NioEngine extends Engine {
 
 							ByteBuffer buffer = ByteBuffer.allocate(1 << 19);
 							try {
-								client.configureBlocking(false);
 								int bytesread = client.read(buffer);
 								if (bytesread > 0) {
 									buffer.flip();
@@ -208,7 +190,6 @@ public class NioEngine extends Engine {
 
 							try {
 								pair.getSendBuffer().flip();
-								client.configureBlocking(false);
 								int bytesWritten = client.write(pair
 										.getSendBuffer());
 								writeCount += bytesWritten;
@@ -216,6 +197,8 @@ public class NioEngine extends Engine {
 								pair.getSendBuffer().compact() ;
 								//System.out.println("Buffer position : "+pair.getSendBuffer().position()+" \nBuffer capacity :"+pair.getSendBuffer().capacity()+" \nBuffer Limit :"+pair.getSendBuffer().limit());
 								ky.interestOps(SelectionKey.OP_READ);
+								
+								
 								if (!client.isOpen()) {
 									connectcallback.closed(pair);
 								}
@@ -283,11 +266,11 @@ public class NioEngine extends Engine {
 	public synchronized void addToMap2(Message m) {
 
 		if (m instanceof AckMessage) {
-			Integer numb_ack = collection_ack.get((AckMessage) m);
+			Integer numb_ack = collection_ack.get((AckMessage)m);
 			Integer new_value_ack = numb_ack == null ? 1 : numb_ack + 1;
 			collection_ack.put((AckMessage) m, new_value_ack);
 		} else {
-
+			
 			priority.add(m);
 
 		}

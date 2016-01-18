@@ -5,7 +5,7 @@ public class BroadcastJoinMessage extends Message {
 
 	public BroadcastJoinMessage(int lamport_stamp, int sender_id) {
 		super(lamport_stamp, sender_id, null);
-		messageID = 6 ;
+		messageID = 3 ;
 	}
 
 	
