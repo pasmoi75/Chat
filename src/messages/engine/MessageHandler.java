@@ -5,7 +5,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.zip.*;
-import messages.engine.NioChannel.BufferState;
 
 public class MessageHandler {
 
@@ -15,21 +14,114 @@ public class MessageHandler {
 		this.engine = engine ;
 	}
 	
+	public void partialMessage(ByteBuffer buffer,NioChannel channel) throws Exception{
+		int status = channel.getStatus() ;
+		int remaining_status = channel.getStatusRemaining() ;
+		
+		System.out.println("Status : "+status+" Remaining_status : "+remaining_status+" NextPayload : "+channel.getNextpayloadlength()+" Remaining : "+buffer.remaining());
+		//System.out.println("Buffer position : "+buffer.position()+" Buffer capacity :"+buffer.capacity()+" Buffer Limit :"+buffer.limit());
+		
+		int message_length = 0 ;
+		byte messageID = -1 ;
+		int message_sender = -1 ;
+		int message_timestamp = -1 ;
+		
+		
+		while (buffer.remaining() >= remaining_status){
+			switch(status){
+			case NioChannel.READING_LENGTH :
+				buffer.get(channel.partialmessage.next_message_length, 4-remaining_status, remaining_status);
+				message_length = Util.readInt32(channel.partialmessage.next_message_length, 0);
+				channel.partialmessage.next_message_payload = new byte[message_length-9];
+				channel.setStatus(NioChannel.READING_MESSAGEID,1);
+				channel.setNextpayloadlength(message_length-9);
+				break ;
+				
+			case NioChannel.READING_MESSAGEID:
+				channel.partialmessage.next_message_ID = buffer.get();
+				channel.setStatus(NioChannel.READING_SENDERID,4);
+				break ;
+				
+			case NioChannel.READING_SENDERID :
+				buffer.get(channel.partialmessage.next_message_sender_ID, 4-remaining_status, remaining_status);
+				channel.setStatus(NioChannel.READING_CLOCK,4);
+				break ;
+				
+			case NioChannel.READING_CLOCK :
+				buffer.get(channel.partialmessage.next_message_timestamp, 4-remaining_status, remaining_status);
+				channel.setStatus(NioChannel.READING_PAYLOAD,channel.getNextpayloadlength());
+				break ;
+				
+			case NioChannel.READING_PAYLOAD :
+				buffer.get(channel.partialmessage.next_message_payload, channel.getNextpayloadlength()-remaining_status, remaining_status);
+				Message m = new Message(channel.partialmessage.next_message_ID,
+						Util.readInt32(channel.partialmessage.next_message_timestamp, 0),
+						Util.readInt32(channel.partialmessage.next_message_sender_ID, 0),
+						channel.partialmessage.next_message_payload
+						);
+				ByteBuffer wrapped = ByteBuffer.wrap(m.sendMessage());
+				channel.setIncompleteMessage(false);
+				handleMessage(wrapped,channel);
+				return ;
+			}
+			status = channel.getStatus();
+			remaining_status = channel.getStatusRemaining();
+			System.out.println("Status updated");
+		}
+		
+		if(buffer.remaining() < remaining_status){
+			switch(status){
+			case NioChannel.READING_LENGTH :
+				read4bytes(buffer, channel, status);
+				break ;
+				
+			case NioChannel.READING_MESSAGEID:
+				readMessageID(buffer, channel);
+				break ;
+				
+			case NioChannel.READING_SENDERID :
+				read4bytes(buffer,channel,status);
+				break ;
+				
+			case NioChannel.READING_CLOCK :
+				read4bytes(buffer,channel,status);
+				break ;
+				
+			case NioChannel.READING_PAYLOAD :
+				readPayload(buffer,channel,remaining_status);
+				break ;
+			}
+			
+		}
+		
+		System.out.println("Fin du Partial Message");
+		
+	}
+	
 	public void handleMessage(ByteBuffer buffer,NioChannel channel) throws Exception{
 		
+		//System.out.println("Buffer position before Partial : "+buffer.position()+" Buffer capacity :"+buffer.capacity()+" Buffer Limit :"+buffer.limit());
+		if(channel.isIncompleteMessage()){
+			System.out.println("Partial Message.");
+			partialMessage(buffer,channel);
+		}
+		//System.out.println("Buffer position after Partial : "+buffer.position()+" Buffer capacity :"+buffer.capacity()+" Buffer Limit :"+buffer.limit());
+		
 		int length = read4bytes(buffer, channel, NioChannel.READING_LENGTH) ;
+		channel.setNextpayloadlength(length-9);
+		
 		byte messageID = readMessageID(buffer, channel) ;
 		System.out.println("Message Length : "+length+" Message ID : "+messageID);
 
 		switch (messageID) {
 		case 0: // Reception simple d'un message
-			if (length > buffer.remaining()+1) {
+			/*if (length > buffer.remaining()+1) {
 				System.out.println("Partial Message");
 				NioChannel.BufferState state = channel.new BufferState(length,
 						length - buffer.remaining());
 				channel.getReceiveBuffer().put(buffer); // Stores the partial
 														// message in a Buffer
-			} else {
+			} else {*/
 				System.out.println(length);
 				byte[] deliver_array = new byte[length - 9];
 				int sender_id = read4bytes(buffer, channel, NioChannel.READING_SENDERID) ;
@@ -39,7 +131,7 @@ public class MessageHandler {
 				// Penser à enlever le message de la queue si le checksum n'est
 				// pas bon
 				Message m = new DataMessage(lamport_timestamp, sender_id,deliver_array);
-				System.out.println("Receiving "+m.getClass().getName()+" from "+m.id_sender);
+				System.out.println("Receiving "+m.getClass().getName()+" from "+m.id_sender+" Timestamp : "+m.timestamp);
 				
 				/*LamportClockUpdate*/
 				engine.setTimestamp(Math.max(m.timestamp,engine.getTimestamp()));
@@ -63,16 +155,16 @@ public class MessageHandler {
 						other_channel.send(message_array, 0,
 								message_array.length);
 					}			
-			}
+			//}
 			break;
 
 		case 1: // Réception Ack
 			int id_sender = read4bytes(buffer, channel, NioChannel.READING_SENDERID) ;
-			int lamport_timestamp = read4bytes(buffer,channel,NioChannel.READING_CLOCK);
+			lamport_timestamp = read4bytes(buffer,channel,NioChannel.READING_CLOCK);
 			byte[] ack_payload_array = new byte[8];
 			ack_payload_array = readPayload(buffer, channel, ack_payload_array.length);
 			
-			Message m = new AckMessage(lamport_timestamp, id_sender,
+			m = new AckMessage(lamport_timestamp, id_sender,
 					ack_payload_array);
 			
 			/*LamportClockUpdate*/
@@ -95,7 +187,7 @@ public class MessageHandler {
 
 			/* Broadcast à tout les autres Peers */
 			if(engine.getChannelList().size() > 1){
-			Message m2 = new BroadcastJoinMessage(engine.getTimestamp(), engine.getId());
+			m2 = new BroadcastJoinMessage(engine.getTimestamp(), engine.getId());
 			engine.addToMap2(m2);
 			for (Channel other_channel : ((NioEngine) channel.getEngine())
 					.getChannelList()) {
@@ -108,7 +200,7 @@ public class MessageHandler {
 			
 			/*On ACK le message soi même, étant donné que pour un BroadcastJoin seul n-1 personnes vont recevoir le broadcast */
 			/* Building ACK */
-			ByteBuffer ack_payload = ByteBuffer.allocate(8);
+			ack_payload = ByteBuffer.allocate(8);
 			ack_payload.putInt(engine.getId());
 			ack_payload.putInt(engine.getTimestamp());
 			ack_payload.flip();
@@ -118,7 +210,7 @@ public class MessageHandler {
 						ack_payload.array());
 			engine.addToMap2(m2);
 			} else if (engine.getChannelList().size() == 1){ //Cas particulier : Pour donner un ID au peer. Voir si meilleure solution existe
-				Message m2 = new BroadcastJoinMessage(engine.getTimestamp(), engine.getId());
+				m2 = new BroadcastJoinMessage(engine.getTimestamp(), engine.getId());
 				engine.addToMap2(m2);
 				for (Channel other_channel : ((NioEngine) channel.getEngine())
 						.getChannelList()) {
@@ -144,12 +236,12 @@ public class MessageHandler {
 			engine.setTimestamp(engine.getTimestamp()+1);
 
 			/* Building ACK */
-			ByteBuffer ack_payload = ByteBuffer.allocate(8);
+			ack_payload = ByteBuffer.allocate(8);
 			ack_payload.putInt(id_sender);
 			ack_payload.putInt(lamport_timestamp);
 			ack_payload.flip();
 
-			Message m2 = new AckMessage(engine.getTimestamp(), engine.getId(),
+			m2 = new AckMessage(engine.getTimestamp(), engine.getId(),
 					ack_payload.array());
 			
 			engine.addToMap2(m2);
@@ -266,28 +358,58 @@ public class MessageHandler {
 		if(buffer.hasRemaining()){
 			System.out.println("Remaining in the buffer : "+buffer.remaining());
 			handleMessage(buffer,channel);
+		} else {
+			buffer.clear();
 		}
 
 	}
 	
 	/*Pour les méthodes ReadLength, ReadSender et ReadClock*/
 	public int read4bytes(ByteBuffer buffer,NioChannel channel,int status) throws IncompleteMessageException{
+		
 		if(buffer.remaining() > 3){
-			return buffer.getInt();
+			int result = buffer.getInt();
+			switch(status){
+			case NioChannel.READING_LENGTH :
+				channel.partialmessage = channel.new PartialMessage();
+				channel.partialmessage.next_message_payload = new byte[result-9];
+				Util.writeInt32(channel.partialmessage.next_message_length, 0, result);
+				break ;
+			case NioChannel.READING_SENDERID :
+				Util.writeInt32(channel.partialmessage.next_message_sender_ID, 0, result);
+				break ;
+			case NioChannel.READING_CLOCK :
+				Util.writeInt32(channel.partialmessage.next_message_timestamp, 0, result);
+				break ;
+			}
+			return result ;			
 		}
+		
+		
 		channel.setStatus(status, 4-buffer.remaining());
-		for(int i = 0 ; i < buffer.remaining() ; i++){
-			channel.getReceiveBuffer().put(buffer.get());
+		switch(status){
+		case NioChannel.READING_LENGTH :
+			channel.partialmessage = channel.new PartialMessage();
+			buffer.get(channel.partialmessage.next_message_length, 0, buffer.remaining());
+			break ;
+		case NioChannel.READING_SENDERID :
+			buffer.get(channel.partialmessage.next_message_sender_ID, 0, buffer.remaining());
+			break ;
+		case NioChannel.READING_CLOCK :
+			buffer.get(channel.partialmessage.next_message_timestamp, 0, buffer.remaining());
+			break ;
 		}
-		throw new IncompleteMessageException();
+		throw new IncompleteMessageException(status,4,4-channel.getStatusRemaining());
 	}
 	
 	public byte readMessageID(ByteBuffer buffer,NioChannel channel) throws IncompleteMessageException{
 		if(buffer.remaining()>0){
-			return buffer.get();
+			byte result = buffer.get();
+			channel.partialmessage.next_message_ID = result ;
+			return result ;
 		}
 		channel.setStatus(NioChannel.READING_MESSAGEID,1);
-		throw new IncompleteMessageException();
+		throw new IncompleteMessageException(NioChannel.READING_MESSAGEID,1,0);
 	}
 	
 	public byte[] readPayload(ByteBuffer buffer,NioChannel channel,int payload_length) throws IncompleteMessageException{
@@ -297,10 +419,8 @@ public class MessageHandler {
 			return payload ;
 		}
 		channel.setStatus(NioChannel.READING_PAYLOAD, payload_length-buffer.remaining());
-		for(int i = 0 ; i<buffer.remaining() ; i++){
-			channel.getReceiveBuffer().put(buffer.get());
-		}
-		throw new IncompleteMessageException();
+		buffer.get(channel.partialmessage.next_message_payload, 0, buffer.remaining());
+		throw new IncompleteMessageException(NioChannel.READING_PAYLOAD,payload_length,payload_length-channel.getStatusRemaining());
 	}
 	
 	public static boolean checkMessage(byte [] payload,long checksum){

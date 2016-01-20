@@ -31,9 +31,9 @@ public class NioDeliver implements DeliverCallback {
 			int sender_id = buffer.getInt();
 			int lamport_timestamp = buffer.getInt();
 			buffer.get(deliver_array, 0, deliver_array.length);
-			for (int i = 0; i < deliver_array.length; i++) {
+			/*for (int i = 0; i < deliver_array.length; i++) {
 				System.out.print(deliver_array[i] + " ");
-			}
+			}*/
 			System.out.println("\n"
 					+ "---------------------------------------------------");
 			break;

@@ -5,7 +5,7 @@ import java.util.Date;
 
 /* Message : Length = 9+X | ID_MESS (1) | ID_SENDER (4)| LogcialClock (4) | PAYLOAD (X) | */
 
-public abstract class Message implements Comparable<Message> {
+public class Message implements Comparable<Message> {
 
 	public int timestamp ;
 	public int id_sender ;
@@ -29,6 +29,14 @@ public abstract class Message implements Comparable<Message> {
 		this.timestamp = lamport_stamp ;
 		this.id_sender = sender_id ;
 		this.message = payload ;
+	}
+	
+	public Message(byte ID,int lamport_stamp, int sender_id, byte [] payload){
+		this.messageID = ID ;
+		this.timestamp = lamport_stamp ;
+		this.id_sender = sender_id ;
+		this.message = payload ;
+		
 	}
 	
 	public void setPayload(byte[] payload){

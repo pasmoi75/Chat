@@ -72,7 +72,7 @@ public class NioEngine extends Engine {
 					System.out.println(collection_ack);*/
 				
 				if (mess != null) {	
-					//System.out.println("Message qui bloque tout : "+mess.getClass().getName());
+					//System.out.println("Message qui bloque tout : "+mess.getClass().getName()+" ID : "+mess.id_sender+" Timestamp : "+mess.timestamp);
 					
 					ByteBuffer payload_ack = ByteBuffer.allocate(8);
 					payload_ack.putInt(mess.id_sender);
@@ -99,7 +99,7 @@ public class NioEngine extends Engine {
 			try {
 				int keys_number = selector.select(500);
 				if (keys_number > 0) {
-				 System.out.println("Timestamp : "+getTimestamp()+" Number of keys :" + keys_number);
+				 //System.out.println("Timestamp : "+getTimestamp()+" Number of keys :" + keys_number);
 					Set<SelectionKey> selectedKeys = selector.selectedKeys();
 					Iterator<SelectionKey> iter = selectedKeys.iterator();
 
@@ -107,9 +107,9 @@ public class NioEngine extends Engine {
 
 						SelectionKey ky = iter.next();
 						if (ky.isValid())
-							System.out.println("Keys Ready Ops :" +
-							 ky.readyOps() + " InterestOps :" +
-							ky.interestOps());
+//							System.out.println("Keys Ready Ops :" +
+//							 ky.readyOps() + " InterestOps :" +
+//							ky.interestOps());
 							if (ky.isValid() && ky.isAcceptable()) {
 								SocketChannel client;
 								try {
@@ -155,9 +155,10 @@ public class NioEngine extends Engine {
 							NioChannel pair = (NioChannel) ky.attachment();
 							NioConnect connectcallback = (NioConnect) pair
 									.getConnectcallback();
-
+							//ByteBuffer buffer = pair.getReceiveBuffer();
 							ByteBuffer buffer = ByteBuffer.allocate(1 << 19);
 							try {
+								
 								int bytesread = client.read(buffer);
 								if (bytesread > 0) {
 									buffer.flip();
@@ -191,15 +192,22 @@ public class NioEngine extends Engine {
 									.getConnectcallback();
 
 							try {
+								pair.mutex.lock();
 								pair.getSendBuffer().flip();
+								//System.out.println("Buffer position : "+pair.getSendBuffer().position()+" \nBuffer capacity :"+pair.getSendBuffer().capacity()+" \nBuffer Limit :"+pair.getSendBuffer().limit());
 								int bytesWritten = client.write(pair
 										.getSendBuffer());
 								writeCount += bytesWritten;
 								System.out.println("bytes Written : "+bytesWritten);
-								pair.getSendBuffer().compact() ;
-								//System.out.println("Buffer position : "+pair.getSendBuffer().position()+" \nBuffer capacity :"+pair.getSendBuffer().capacity()+" \nBuffer Limit :"+pair.getSendBuffer().limit());
-								ky.interestOps(SelectionKey.OP_READ);
+								pair.getSendBuffer().clear() ;
+								pair.mutex.unlock();	
+								pair.send(null, 0, 0); //Juste pour vider la file de messages
 								
+								if(bytesWritten != 0){
+									ky.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+								} else {
+									ky.interestOps(SelectionKey.OP_READ);
+								}
 								
 								if (!client.isOpen()) {
 									connectcallback.closed(pair);

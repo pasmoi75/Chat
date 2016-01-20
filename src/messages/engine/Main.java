@@ -1,17 +1,17 @@
 package messages.engine;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
+import java.io.PrintStream;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
-import java.util.Date;
 import java.util.Random;
 import java.util.Scanner;
 
 public class Main {
+	
+	
 
 	/*
 	 * L'adresse pour tout les clients est localhost, donc il faut juste
@@ -20,6 +20,18 @@ public class Main {
 	 * connecter args[3] = Port du deuxième peer, etc...
 	 */
 	public static void main(String[] args) {
+		
+//		File file = new File("./LOG/LOG_"+System.currentTimeMillis()/1000+".txt");
+//		PrintStream printstream ;
+//		try {
+//		printstream = new PrintStream(file);
+//			System.setOut(printstream);
+//		} catch (FileNotFoundException e) {
+//			// TODO AUTO-GENERATED CATCH BLOCK
+//			e.printStackTrace();
+//		}
+		
+		
 		try {
 			Scanner sc = new Scanner(System.in);
 			String name = args.length > 0 ? args[0] : "";
@@ -90,14 +102,16 @@ public class Main {
 
 			while (continuer) {
 				if (((NioEngine) engine).getChannelList().size() > 1 && ((NioEngine)engine).getId() != 0) {
-					for (int k = 0; k < 3; k++) {
+					Thread.sleep(3000);
+					for (int k = 0; k < 500; k++) {
 						Random random = new Random(System.currentTimeMillis());
-						int length = random.nextInt(Byte.MAX_VALUE);
-						System.out.println("Nombre choisi :" + length);
+						//int length = random.nextInt(1<<11);
+						int valeur = (1<<11);
+						System.out.println("Nombre choisi :" + valeur);
 						
-						byte bytes[] = new byte[length] ;
-						for (int i = 0; i < length; i++) {
-							bytes[i] = (byte) i;
+						byte bytes[] = new byte[valeur] ;
+						for (int i = 0; i < bytes.length ; i++) {
+							bytes[i] = (byte) (i%Byte.MAX_VALUE);
 						}
 						((NioEngine)engine).setTimestamp(((NioEngine)engine).getTimestamp()+1);
 						 int lamport_timestamp = ((NioEngine)engine).getTimestamp();

@@ -1,19 +1,16 @@
 package messages.engine;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
-import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.ArrayDeque;
+import java.util.Queue;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.zip.CRC32;
 import java.util.zip.Checksum;
 
@@ -25,9 +22,12 @@ public class NioChannel extends Channel {
 	public final static int READING_CLOCK = 4 ;
 	public final static int READING_PAYLOAD = 5 ;
 	
+	public Queue<byte[]> file_messages = new ArrayDeque<byte[]>();
+	
 	private int status ;
 	private int status_remaining ;
 	private boolean incomplete_message ;
+	private int nextpayloadlength = -1 ;
 
 	private Engine engine;
 	private SelectionKey selectionkey;
@@ -38,29 +38,36 @@ public class NioChannel extends Channel {
 	private ConnectCallback connectcallback;
 	private boolean blocked;
 	private boolean nouveau_venu ;
-	private int unreadposition ;
 	private Integer local_port;
-
-	public class BufferState {
-		public int messagelength;
-		public int remaining;
-
-		public BufferState(int length, int remain) {
-			messagelength = length;
-			remaining = remain;
+	public final Lock mutex ;
+	
+	public class PartialMessage {
+		byte[] next_message_length ;
+		byte next_message_ID ;
+		byte[] next_message_sender_ID ;
+		byte[] next_message_timestamp ;
+		byte[] next_message_payload ;
+		
+		public PartialMessage(){
+			next_message_length = new byte[4] ;
+			next_message_sender_ID = new byte[4];
+			next_message_timestamp = new byte[4];
 		}
+		
 	}
+	
+	public PartialMessage partialmessage ;
 
-	private BufferState bufferstate;
 
 	/* Constructor for Incoming connections */
 	public NioChannel(Engine engine, SocketChannel channel) {
 		this.engine = engine;
 		this.channel = channel;
 		this.connectcallback = new NioConnect(engine, this);
-		this.rcv_buffer = ByteBuffer.allocate(1 << 8);
-		this.send_buffer = ByteBuffer.allocate(1 << 19);
+		this.rcv_buffer = ByteBuffer.allocate(1 << 15);
+		this.send_buffer = ByteBuffer.allocate(1 << 15);
 		this.nouveau_venu = true ;
+		mutex = new ReentrantLock(true);
 	}
 
 	/* Constructor for Outgoing connections */
@@ -69,11 +76,12 @@ public class NioChannel extends Channel {
 			IOException {
 		this.engine = engine;
 		this.connectcallback = new NioConnect(engine, this);
-		this.rcv_buffer = ByteBuffer.allocate(1 << 19);
-		this.send_buffer = ByteBuffer.allocate(1 << 19);
+		this.rcv_buffer = ByteBuffer.allocate(1 << 15);
+		this.send_buffer = ByteBuffer.allocate(1 << 15);
 		this.engine.connect(hostAddress, port, connectcallback);
 		this.local_port = local_port;
 		this.nouveau_venu = false ;
+		mutex = new ReentrantLock(true);
 
 	}
 	
@@ -118,6 +126,14 @@ public class NioChannel extends Channel {
 		return delivercallback;
 	}
 
+	public int getNextpayloadlength() {
+		return nextpayloadlength;
+	}
+
+	public void setNextpayloadlength(int nextpayloadlength) {
+		this.nextpayloadlength = nextpayloadlength;
+	}
+
 	@Override
 	public InetSocketAddress getRemoteAddress() {
 		return (InetSocketAddress) channel.socket().getRemoteSocketAddress();
@@ -125,15 +141,41 @@ public class NioChannel extends Channel {
 
 	@Override
 	public synchronized void send(byte[] bytes, int offset, int length) {
+		mutex.lock();
+		int count = 0 ;
+		byte [] waiting_message = file_messages.peek();
+		while(waiting_message != null && count < 30){
+			System.out.println("Sending Waiting Message. Length = "+waiting_message.length);
+			if (send_buffer.capacity() - send_buffer.position() > waiting_message.length) {
+				send_buffer.put(waiting_message);
+				selectionkey.interestOps(SelectionKey.OP_READ
+						| SelectionKey.OP_WRITE);
+				file_messages.poll();
+				System.out.println("Retrieving Message ID = "+waiting_message[4]+" and Timestamp = "+Util.readInt32(waiting_message,9)+" from the queue");
+			} else {
+				System.out.println("Send waiting Buffer is Full");
+				if(bytes != null)
+				file_messages.add(bytes);
+				mutex.unlock();
+				return ;
+			}
+			waiting_message = file_messages.peek();
+			count++ ;
+		}
+		
 		System.out.println("Sending Message. Length = "+length);
+		if(bytes != null){
 		//System.out.println("Buffer position : "+send_buffer.position()+" \nBuffer capacity :"+send_buffer.capacity()+" \nBuffer Limit :"+send_buffer.limit());
 		if (send_buffer.capacity() - send_buffer.position() > length) {
 			send_buffer.put(bytes);
 			selectionkey.interestOps(SelectionKey.OP_READ
 					| SelectionKey.OP_WRITE);
 		} else {
-			System.out.println("Send Buffer is Full");
+			System.out.println("Putting into queue.");
+			file_messages.add(bytes);
 		}
+		}
+		mutex.unlock();
 	}	
 
 	public void checkbuffer(ByteBuffer buffer) {
@@ -191,6 +233,10 @@ public class NioChannel extends Channel {
 	public boolean isBlocked() {
 		return blocked;
 	}
+	
+	public void setIncompleteMessage(boolean boule){
+		this.incomplete_message = boule ;
+	}
 
 	public void setBlocked(boolean blocked) {
 		this.blocked = blocked;
@@ -243,6 +289,10 @@ public class NioChannel extends Channel {
 	
 	public int getStatusRemaining(){
 		return status_remaining ;
+	}
+	
+	public boolean isIncompleteMessage(){
+		return incomplete_message ;
 	}
 
 }
